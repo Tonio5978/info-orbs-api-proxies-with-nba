@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: proxy-app
+    env: docker
+    dockerfilePath: ./Dockerfile
+    port: 80
+    healthCheckPath: /mlbdata/proxy?teamName=yankees
+    healthCheckInitialDelay: 30 # Give more time for all services to start
+    disk:
+      name: timezone_cache
+      mountPath: /opt/render/project/persistent
+      sizeGB: 1
+    volumes:
+      - name: mlb_logos
+        mountPath: /app/mlb_logos
+      - name: nfl_logos
+        mountPath: /app/nfl_logos
+    envVars:
+      - key: MLBDATA_PROXY_REQUESTS_PER_MINUTE
+        value: "15"
+      - key: MLBDATA_PROXY_CACHE_LIFE
+        value: "5"
+      - key: RELOAD
+        value: "0" # Disable auto-reload

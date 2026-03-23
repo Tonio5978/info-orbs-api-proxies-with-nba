@@ -1,0 +1,19 @@
+services:
+  proxy:
+    build: .
+    env_file: .env
+    ports:
+      - "80:80"
+    volumes:
+      - timezone_cache:/var/cache/timezone_proxy
+      - ./mlb_logos:/app/mlb_logos
+      - ./nlf_logos:/app/nfl_logos
+      - ./nba_logos:/app/nba_logos
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "2m"
+        max-file: "5"    
+
+volumes:
+  timezone_cache:  # Auto-created if doesn't exist

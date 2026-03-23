@@ -1,0 +1,242 @@
+[
+    {
+      "id": 134,
+      "name": "Pittsburgh Pirates",
+      "aliases": ["pirates", "pit", "pitt"],
+      "colors": "Black (#000000), Gold (#FFD700), White (#FFFFFF)",
+      "logoImageFileName" : "black_134.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 147,
+      "name": "New York Yankees",
+      "aliases": ["yankees", "nyy", "ny"],
+      "colors": "Navy Blue (#0C2340), Gray (#E6E6E6), White (#FFFFFF)",
+      "logoImageFileName" : "147.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 111,
+      "name": "Boston Red Sox",
+      "aliases": ["redsox", "bos", "boston"],
+      "colors": "Red (#BD3039), Navy Blue (#0C2340), White (#FFFFFF)",
+      "logoImageFileName" : "black_111.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 112,
+      "name": "Chicago Cubs",
+      "aliases": ["cubs", "chc", "chicago"],
+      "colors": "Blue (#0E3386), Red (#CC3433), White (#FFFFFF)",
+      "logoImageFileName" : "black_112.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 145,
+      "name": "Chicago White Sox",
+      "aliases": ["whitesox", "cws", "chw"],
+      "colors": "Black (#000000), Silver (#C4CED4), White (#FFFFFF)",
+      "logoImageFileName" : "black_145.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 113,
+      "name": "Cincinnati Reds",
+      "aliases": ["reds", "cin", "cincinnati"],
+      "colors": "Black (#000000), Red (#C6011F),  White (#FFFFFF)",
+      "logoImageFileName" : "black_113.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 114,
+      "name": "Cleveland Guardians",
+      "aliases": ["guardians", "cle", "cleveland"],
+      "colors": "Navy Blue (#0C2340), Red (#E31937), White (#FFFFFF)",
+      "logoImageFileName" : "black_114.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 115,
+      "name": "Colorado Rockies",
+      "aliases": ["rockies", "col", "colorado"],
+      "colors": "Black (#000000), Purple (#33006F),  Silver (#C4CED4)",
+      "logoImageFileName" : "115.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 116,
+      "name": "Detroit Tigers",
+      "aliases": ["tigers", "det", "detroit"],
+      "colors": "Navy Blue (#0C2340), Orange (#FA4616), White (#FFFFFF)",
+      "logoImageFileName" : "116.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 117,
+      "name": "Houston Astros",
+      "aliases": ["astros", "hou", "houston"],
+      "colors": "Orange (#EB6E1F), Navy Blue (#002D62), White (#FFFFFF)",
+      "logoImageFileName" : "black_117.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 118,
+      "name": "Kansas City Royals",
+      "aliases": ["royals", "kc", "kansascity"],
+      "colors": "Royal Blue (#004687), Gold (#BD9B60), White (#FFFFFF)",
+      "logoImageFileName" : "118.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 108,
+      "name": "Los Angeles Angels",
+      "aliases": ["angels", "laa", "anaheim"],
+      "colors": "Red (#BA0021), Navy Blue (#003263), White (#FFFFFF)",
+      "logoImageFileName" : "black_108.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 119,
+      "name": "Los Angeles Dodgers",
+      "aliases": ["dodgers", "lad", "losangeles"],
+      "colors": "Dodger Blue (#005A9C), Red (#EF3E42), White (#FFFFFF)",
+      "logoImageFileName" : "119.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 146,
+      "name": "Miami Marlins",
+      "aliases": ["marlins", "mia", "miami"],
+      "colors": "Blue (#00A3E0),  Orange (#EF3340),Black (#000000)",
+      "logoImageFileName" : "146.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 158,
+      "name": "Milwaukee Brewers",
+      "aliases": ["brewers", "mil", "milwaukee"],
+      "colors": "Navy Blue (#0A2351), Gold (#B6922E), White (#FFFFFF)",
+      "logoImageFileName" : "black_158.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 142,
+      "name": "Minnesota Twins",
+      "aliases": ["twins", "min", "minnesota"],
+      "colors": "Navy Blue (#002B5C), Red (#D31145), White (#FFFFFF)",
+      "logoImageFileName" : "142.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 121,
+      "name": "New York Mets",
+      "aliases": ["mets", "nym", "newyork"],
+      "colors": "Blue (#002D72), Orange (#FF5910), White (#FFFFFF)",
+      "logoImageFileName" : "black_121.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 133,
+      "name": "Oakland Athletics",
+      "aliases": ["athletics", "oak", "oakland"],
+      "colors": "Green (#003831), Gold (#EFB21E), White (#FFFFFF)",
+      "logoImageFileName" : "133.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 143,
+      "name": "Philadelphia Phillies",
+      "aliases": ["phillies", "phi", "philadelphia"],
+      "colors": "Red (#E81828), Blue (#284898), White (#FFFFFF)",
+      "logoImageFileName" : "black_143.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 109,
+      "name": "Arizona Diamondbacks",
+      "aliases": ["diamondbacks", "ari", "arizona"],
+      "colors": "Red (#A71930), Teal (#00B2A9), Black (#000000)",
+      "logoImageFileName" : "black_143.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 135,
+      "name": "San Diego Padres",
+      "aliases": ["padres", "sd", "sandiego"],
+      "colors": "Brown (#2F241D), Gold (#FFC425), White (#FFFFFF)",
+      "logoImageFileName" : "135.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 137,
+      "name": "San Francisco Giants",
+      "aliases": ["giants", "sf", "sanfrancisco"],
+      "colors": "Orange (#FD5A1E), Cream (#FFFDD0), Black (#000000)",
+      "logoImageFileName" : "black_137.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 136,
+      "name": "Seattle Mariners",
+      "aliases": ["mariners", "sea", "seattle"],
+      "colors": "Navy Blue (#0C2C56), Teal (#005C5C), Silver (#C4CED4)",
+      "logoImageFileName" : "black_136.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 138,
+      "name": "St. Louis Cardinals",
+      "aliases": ["cardinals", "stl", "stlouis"],
+      "colors": "Red (#C41E3A), Navy Blue (#0C2340), White (#FFFFFF)",
+      "logoImageFileName" : "black_138.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 139,
+      "name": "Tampa Bay Rays",
+      "aliases": ["rays", "tb", "tampabay"],
+      "colors": "Navy Blue (#092C5C), Light Blue (#8FBCE6), Yellow (#F5D130)",
+      "logoImageFileName" : "139.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 140,
+      "name": "Texas Rangers",
+      "aliases": ["rangers", "tex", "texas"],
+      "colors": "Blue (#003278), Red (#C0111F), White (#FFFFFF)",
+      "logoImageFileName" : "140.jpg",
+      "logoBackgroundColor" : "white" 
+    },
+    {
+      "id": 141,
+      "name": "Toronto Blue Jays",
+      "aliases": ["bluejays", "tor", "toronto"],
+      "colors": "Blue (#134A8E), White (#FFFFFF), Red (#E8291C)",
+      "logoImageFileName" : "black_141.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 120,
+      "name": "Washington Nationals",
+      "aliases": ["nationals", "was", "washington"],
+      "colors": "Red (#AB0003), Navy Blue (#14225A), White (#FFFFFF)",
+      "logoImageFileName" : "black_120.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 110,
+      "name": "Baltimore Orioles",
+      "aliases": ["orioles", "bal", "baltimore"],
+      "colors": "Orange (#DF4601), White (#FFFFFF), Black (#000000)",
+      "logoImageFileName" : "black_110.jpg",
+      "logoBackgroundColor" : "black" 
+    },
+    {
+      "id": 144,
+      "name": "Atlanta Braves",
+      "aliases": ["braves", "atl", "atlanta"],
+      "colors": "Navy Blue (#13274F), Red (#CE1141), White (#FFFFFF)",
+      "logoImageFileName" : "144.jpg",
+      "logoBackgroundColor" : "white" 
+    }
+  ]

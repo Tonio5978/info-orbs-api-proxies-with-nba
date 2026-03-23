@@ -1,0 +1,302 @@
+[
+  {
+    "id": "1",
+    "name": "Atlanta Hawks",
+    "aliases": ["ATL", "Hawks", "Atlanta", "atlanta hawks"],
+    "colors": "Red (#C8102E), Black (#000000), Yellow (#FDB927)",
+    "logoImageFileName": "atl.png",
+    "logoBackgroundColor": "#C8102E",
+    "conference": "Eastern",
+    "division": "Southeast"
+  },
+  {
+    "id": "2",
+    "name": "Boston Celtics",
+    "aliases": ["BOS", "Celtics", "Boston", "boston celtics"],
+    "colors": "Green (#007A33), White (#FFFFFF)",
+    "logoImageFileName": "bos.png",
+    "logoBackgroundColor": "#007A33",
+    "conference": "Eastern",
+    "division": "Atlantic"
+  },
+  {
+    "id": "17",
+    "name": "Brooklyn Nets",
+    "aliases": ["BKN", "Nets", "Brooklyn", "brooklyn nets"],
+    "colors": "Black (#000000), White (#FFFFFF)",
+    "logoImageFileName": "bkn.png",
+    "logoBackgroundColor": "#000000",
+    "conference": "Eastern",
+    "division": "Atlantic"
+  },
+  {
+    "id": "30",
+    "name": "Charlotte Hornets",
+    "aliases": ["CHA", "Hornets", "Charlotte", "charlotte hornets"],
+    "colors": "Teal (#00788C), Purple (#1D1160), White (#FFFFFF)",
+    "logoImageFileName": "cha.png",
+    "logoBackgroundColor": "#00788C",
+    "conference": "Eastern",
+    "division": "Southeast"
+  },
+  {
+    "id": "4",
+    "name": "Chicago Bulls",
+    "aliases": ["CHI", "Bulls", "Chicago", "chicago bulls"],
+    "colors": "Red (#CE1141), Black (#000000)",
+    "logoImageFileName": "chi.png",
+    "logoBackgroundColor": "#CE1141",
+    "conference": "Eastern",
+    "division": "Central"
+  },
+  {
+    "id": "5",
+    "name": "Cleveland Cavaliers",
+    "aliases": ["CLE", "Cavs", "Cavaliers", "Cleveland", "cleveland cavaliers"],
+    "colors": "Wine (#860038), Gold (#FDBB30), Navy (#002D62)",
+    "logoImageFileName": "cle.png",
+    "logoBackgroundColor": "#860038",
+    "conference": "Eastern",
+    "division": "Central"
+  },
+  {
+    "id": "6",
+    "name": "Dallas Mavericks",
+    "aliases": ["DAL", "Mavs", "Mavericks", "Dallas", "dallas mavericks"],
+    "colors": "Blue (#00538C), Silver (#B8C4CA), Navy (#002B5E)",
+    "logoImageFileName": "dal.png",
+    "logoBackgroundColor": "#00538C",
+    "conference": "Western",
+    "division": "Southwest"
+  },
+  {
+    "id": "7",
+    "name": "Denver Nuggets",
+    "aliases": ["DEN", "Nuggets", "Denver", "denver nuggets"],
+    "colors": "Navy (#0E2240), Gold (#FEC524), Red (#8B2131)",
+    "logoImageFileName": "den.png",
+    "logoBackgroundColor": "#0E2240",
+    "conference": "Western",
+    "division": "Northwest"
+  },
+  {
+    "id": "8",
+    "name": "Detroit Pistons",
+    "aliases": ["DET", "Pistons", "Detroit", "detroit pistons"],
+    "colors": "Red (#C8102E), Blue (#006BB6), Silver (#BEC0C2)",
+    "logoImageFileName": "det.png",
+    "logoBackgroundColor": "#C8102E",
+    "conference": "Eastern",
+    "division": "Central"
+  },
+  {
+    "id": "9",
+    "name": "Golden State Warriors",
+    "aliases": ["GSW", "Warriors", "Golden State", "golden state warriors"],
+    "colors": "Blue (#1D428A), Gold (#FFC72C)",
+    "logoImageFileName": "gsw.png",
+    "logoBackgroundColor": "#1D428A",
+    "conference": "Western",
+    "division": "Pacific"
+  },
+  {
+    "id": "10",
+    "name": "Houston Rockets",
+    "aliases": ["HOU", "Rockets", "Houston", "houston rockets"],
+    "colors": "Red (#CE1141), Silver (#C4CED4), Black (#000000)",
+    "logoImageFileName": "hou.png",
+    "logoBackgroundColor": "#CE1141",
+    "conference": "Western",
+    "division": "Southwest"
+  },
+  {
+    "id": "11",
+    "name": "Indiana Pacers",
+    "aliases": ["IND", "Pacers", "Indiana", "indiana pacers"],
+    "colors": "Navy (#002D62), Gold (#FDBB30)",
+    "logoImageFileName": "ind.png",
+    "logoBackgroundColor": "#002D62",
+    "conference": "Eastern",
+    "division": "Central"
+  },
+  {
+    "id": "12",
+    "name": "LA Clippers",
+    "aliases": ["LAC", "Clippers", "LA Clippers", "la clippers"],
+    "colors": "Red (#C8102E), Blue (#1D428A), Silver (#BEC0C2)",
+    "logoImageFileName": "lac.png",
+    "logoBackgroundColor": "#C8102E",
+    "conference": "Western",
+    "division": "Pacific"
+  },
+  {
+    "id": "13",
+    "name": "Los Angeles Lakers",
+    "aliases": ["LAL", "Lakers", "Los Angeles", "los angeles lakers"],
+    "colors": "Purple (#552583), Gold (#FDB927)",
+    "logoImageFileName": "lal.png",
+    "logoBackgroundColor": "#552583",
+    "conference": "Western",
+    "division": "Pacific"
+  },
+  {
+    "id": "29",
+    "name": "Memphis Grizzlies",
+    "aliases": ["MEM", "Grizzlies", "Memphis", "memphis grizzlies"],
+    "colors": "Navy (#12173F), Light Blue (#5D76A9), Gold (#F5B112)",
+    "logoImageFileName": "mem.png",
+    "logoBackgroundColor": "#12173F",
+    "conference": "Western",
+    "division": "Southwest"
+  },
+  {
+    "id": "14",
+    "name": "Miami Heat",
+    "aliases": ["MIA", "Heat", "Miami", "miami heat"],
+    "colors": "Red (#98002E), Black (#000000), Gold (#F9A01B)",
+    "logoImageFileName": "mia.png",
+    "logoBackgroundColor": "#98002E",
+    "conference": "Eastern",
+    "division": "Southeast"
+  },
+  {
+    "id": "15",
+    "name": "Milwaukee Bucks",
+    "aliases": ["MIL", "Bucks", "Milwaukee", "milwaukee bucks"],
+    "colors": "Green (#00471B), Cream (#EEE1C6)",
+    "logoImageFileName": "mil.png",
+    "logoBackgroundColor": "#00471B",
+    "conference": "Eastern",
+    "division": "Central"
+  },
+  {
+    "id": "16",
+    "name": "Minnesota Timberwolves",
+    "aliases": ["MIN", "Timberwolves", "Wolves", "Minnesota", "minnesota timberwolves"],
+    "colors": "Navy (#0C2340), Blue (#236192), Green (#9EA1A2)",
+    "logoImageFileName": "min.png",
+    "logoBackgroundColor": "#0C2340",
+    "conference": "Western",
+    "division": "Northwest"
+  },
+  {
+    "id": "3",
+    "name": "New Orleans Pelicans",
+    "aliases": ["NOP", "Pelicans", "New Orleans", "new orleans pelicans"],
+    "colors": "Navy (#0C2340), Gold (#C8A956), Red (#CE0E2D)",
+    "logoImageFileName": "nop.png",
+    "logoBackgroundColor": "#0C2340",
+    "conference": "Western",
+    "division": "Southwest"
+  },
+  {
+    "id": "18",
+    "name": "New York Knicks",
+    "aliases": ["NYK", "Knicks", "New York", "new york knicks"],
+    "colors": "Blue (#006BB6), Orange (#F58426)",
+    "logoImageFileName": "nyk.png",
+    "logoBackgroundColor": "#006BB6",
+    "conference": "Eastern",
+    "division": "Atlantic"
+  },
+  {
+    "id": "25",
+    "name": "Oklahoma City Thunder",
+    "aliases": ["OKC", "Thunder", "Oklahoma City", "oklahoma city thunder"],
+    "colors": "Blue (#007AC1), Orange (#EF3B24), Yellow (#002D62)",
+    "logoImageFileName": "okc.png",
+    "logoBackgroundColor": "#007AC1",
+    "conference": "Western",
+    "division": "Northwest"
+  },
+  {
+    "id": "19",
+    "name": "Orlando Magic",
+    "aliases": ["ORL", "Magic", "Orlando", "orlando magic"],
+    "colors": "Blue (#0077C0), Black (#000000), Silver (#C4CED4)",
+    "logoImageFileName": "orl.png",
+    "logoBackgroundColor": "#0077C0",
+    "conference": "Eastern",
+    "division": "Southeast"
+  },
+  {
+    "id": "20",
+    "name": "Philadelphia 76ers",
+    "aliases": ["PHI", "76ers", "Sixers", "Philadelphia", "philadelphia 76ers"],
+    "colors": "Blue (#006BB6), Red (#ED174C), Silver (#C4CED4)",
+    "logoImageFileName": "phi.png",
+    "logoBackgroundColor": "#006BB6",
+    "conference": "Eastern",
+    "division": "Atlantic"
+  },
+  {
+    "id": "21",
+    "name": "Phoenix Suns",
+    "aliases": ["PHX", "Suns", "Phoenix", "phoenix suns"],
+    "colors": "Purple (#1D1160), Orange (#E56020), Black (#000000)",
+    "logoImageFileName": "phx.png",
+    "logoBackgroundColor": "#1D1160",
+    "conference": "Western",
+    "division": "Pacific"
+  },
+  {
+    "id": "22",
+    "name": "Portland Trail Blazers",
+    "aliases": ["POR", "Blazers", "Trail Blazers", "Portland", "portland trail blazers"],
+    "colors": "Red (#E03A3E), Black (#000000)",
+    "logoImageFileName": "por.png",
+    "logoBackgroundColor": "#E03A3E",
+    "conference": "Western",
+    "division": "Northwest"
+  },
+  {
+    "id": "23",
+    "name": "Sacramento Kings",
+    "aliases": ["SAC", "Kings", "Sacramento", "sacramento kings"],
+    "colors": "Purple (#5A2D81), Silver (#63727A)",
+    "logoImageFileName": "sac.png",
+    "logoBackgroundColor": "#5A2D81",
+    "conference": "Western",
+    "division": "Pacific"
+  },
+  {
+    "id": "24",
+    "name": "San Antonio Spurs",
+    "aliases": ["SAS", "Spurs", "San Antonio", "san antonio spurs"],
+    "colors": "Black (#000000), Silver (#C4CED4)",
+    "logoImageFileName": "sas.png",
+    "logoBackgroundColor": "#000000",
+    "conference": "Western",
+    "division": "Southwest"
+  },
+  {
+    "id": "28",
+    "name": "Toronto Raptors",
+    "aliases": ["TOR", "Raptors", "Toronto", "toronto raptors"],
+    "colors": "Red (#CE1141), Black (#000000), Gold (#B4975A)",
+    "logoImageFileName": "tor.png",
+    "logoBackgroundColor": "#CE1141",
+    "conference": "Eastern",
+    "division": "Atlantic"
+  },
+  {
+    "id": "26",
+    "name": "Utah Jazz",
+    "aliases": ["UTAH", "UTA", "Jazz", "Utah", "utah jazz"],
+    "colors": "Navy (#002B5C), Yellow (#F9A01B), Green (#00471B)",
+    "logoImageFileName": "utah.png",
+    "logoBackgroundColor": "#002B5C",
+    "conference": "Western",
+    "division": "Northwest"
+  },
+  {
+    "id": "27",
+    "name": "Washington Wizards",
+    "aliases": ["WAS", "Wizards", "Washington", "washington wizards"],
+    "colors": "Blue (#002B5C), Red (#E31837), Silver (#C4CED4)",
+    "logoImageFileName": "was.png",
+    "logoBackgroundColor": "#002B5C",
+    "conference": "Eastern",
+    "division": "Southeast"
+  }
+]

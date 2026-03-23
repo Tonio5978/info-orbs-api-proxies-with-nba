@@ -1,0 +1,322 @@
+[
+    {
+        "id": "22",
+        "name": "Arizona Cardinals",
+        "aliases": ["cardinals", "ari", "arizona"],
+        "colors": "Red (#97233F), White (#FFFFFF), Black (#000000)",
+        "logoImageFileName": "22.jpg",
+        "logoBackgroundColor": "white",
+        "conference": "NFC",
+        "division": "NFC West"
+    },
+    {
+        "id": "01",
+        "name": "Atlanta Falcons",
+        "aliases": ["falcons", "atl", "atlanta"],
+        "colors": "Red (#A71930), Black (#000000), White (#FFFFFF)",
+        "logoImageFileName": "01.jpg",
+        "logoBackgroundColor": "black",
+        "conference": "NFC",
+        "division": "NFC South"
+    },
+    {
+        "id": "33",
+        "name": "Baltimore Ravens",
+        "aliases": ["ravens", "bal", "baltimore"],
+        "colors": "Purple (#241773), Black (#000000), Gold (#9E7C0C)",
+        "logoImageFileName": "33.jpg",
+        "logoBackgroundColor": "purple",
+        "conference": "AFC",
+        "division": "AFC North"
+    },
+    {
+        "id": "02",
+        "name": "Buffalo Bills",
+        "aliases": ["bills", "buf", "buffalo"],
+        "colors": "Blue (#00338D), Red (#C60C30), White (#FFFFFF)",
+        "logoImageFileName": "02.jpg",
+        "logoBackgroundColor": "blue",
+        "conference": "AFC",
+        "division": "AFC East"
+    },
+    {
+        "id": "29",
+        "name": "Carolina Panthers",
+        "aliases": ["panthers", "car", "carolina"],
+        "colors": "Black (#000000), Blue (#0085CA), Silver (#BFC0BF)",
+        "logoImageFileName": "29.jpg",
+        "logoBackgroundColor": "black",
+        "conference": "NFC",
+        "division": "NFC South"
+    },
+    {
+        "id": "03",
+        "name": "Chicago Bears",
+        "aliases": ["bears", "chi", "chicago"],
+        "colors": "Navy Blue (#0B162A), Orange (#C83803), White (#FFFFFF)",
+        "logoImageFileName": "03.jpg",
+        "logoBackgroundColor": "navy",
+        "conference": "NFC",
+        "division": "NFC North"
+    },
+    {
+        "id": "04",
+        "name": "Cincinnati Bengals",
+        "aliases": ["bengals", "cin", "cincinnati"],
+        "colors": "Black (#000000), Orange (#FB4F14), White (#FFFFFF)",
+        "logoImageFileName": "04.jpg",
+        "logoBackgroundColor": "black",
+        "conference": "AFC",
+        "division": "AFC North"
+    },
+    {
+        "id": "05",
+        "name": "Cleveland Browns",
+        "aliases": ["browns", "cle", "cleveland"],
+        "colors": "Brown (#311D00), Orange (#FF3C00), White (#FFFFFF)",
+        "logoImageFileName": "05.jpg",
+        "logoBackgroundColor": "brown",
+        "conference": "AFC",
+        "division": "AFC North"
+    },
+    {
+        "id": "06",
+        "name": "Dallas Cowboys",
+        "aliases": ["cowboys", "dal", "dallas"],
+        "colors": "Navy Blue (#002244), Silver (#B0B7BC), White (#FFFFFF)",
+        "logoImageFileName": "06.jpg",
+        "logoBackgroundColor": "navy",
+        "conference": "NFC",
+        "division": "NFC East"
+    },
+    {
+        "id": "07",
+        "name": "Denver Broncos",
+        "aliases": ["broncos", "den", "denver"],
+        "colors": "Orange (#FB4F14), Navy Blue (#002244), White (#FFFFFF)",
+        "logoImageFileName": "07.jpg",
+        "logoBackgroundColor": "orange",
+        "conference": "AFC",
+        "division": "AFC West"
+    },
+    {
+        "id": "08",
+        "name": "Detroit Lions",
+        "aliases": ["lions", "det", "detroit"],
+        "colors": "Honolulu Blue (#005A8B), Silver (#B0B7BC), White (#FFFFFF)",
+        "logoImageFileName": "08.jpg",
+        "logoBackgroundColor": "blue",
+        "conference": "NFC",
+        "division": "NFC North"
+    },
+    {
+        "id": "09",
+        "name": "Green Bay Packers",
+        "aliases": ["packers", "gb", "greenbay"],
+        "colors": "Green (#203731), Gold (#FFB612), White (#FFFFFF)",
+        "logoImageFileName": "09.jpg",
+        "logoBackgroundColor": "green",
+        "conference": "NFC",
+        "division": "NFC North"
+    },
+    {
+        "id": "34",
+        "name": "Houston Texans",
+        "aliases": ["texans", "hou", "houston"],
+        "colors": "Deep Steel Blue (#03202F), Battle Red (#A71930), White (#FFFFFF)",
+        "logoImageFileName": "34.jpg",
+        "logoBackgroundColor": "blue",
+        "conference": "AFC",
+        "division": "AFC South"
+    },
+    {
+        "id": "11",
+        "name": "Indianapolis Colts",
+        "aliases": ["colts", "ind", "indianapolis"],
+        "colors": "Blue (#002C5F), White (#FFFFFF)",
+        "logoImageFileName": "11.jpg",
+        "logoBackgroundColor": "blue",
+        "conference": "AFC",
+        "division": "AFC South"
+    },
+    {
+        "id": "30",
+        "name": "Jacksonville Jaguars",
+        "aliases": ["jaguars", "jac", "jacksonville"],
+        "colors": "Teal (#006778), Gold (#D7A22A), Black (#000000)",
+        "logoImageFileName": "30.jpg",
+        "logoBackgroundColor": "teal",
+        "conference": "AFC",
+        "division": "AFC South"
+    },
+    {
+        "id": "12",
+        "name": "Kansas City Chiefs",
+        "aliases": ["chiefs", "kc", "kansascity"],
+        "colors": "Red (#E31837), Gold (#FFB81C), White (#FFFFFF)",
+        "logoImageFileName": "12.jpg",
+        "logoBackgroundColor": "red",
+        "conference": "AFC",
+        "division": "AFC West"
+    },
+    {
+        "id": "13",
+        "name": "Las Vegas Raiders",
+        "aliases": ["raiders", "lv", "vegas"],
+        "colors": "Black (#000000), Silver (#A5ACAF), White (#FFFFFF)",
+        "logoImageFileName": "13.jpg",
+        "logoBackgroundColor": "black",
+        "conference": "AFC",
+        "division": "AFC West"
+    },
+    {
+        "id": "24",
+        "name": "Los Angeles Chargers",
+        "aliases": ["chargers", "lac", "losangeles"],
+        "colors": "Navy Blue (#002244), Gold (#FFB81C), White (#FFFFFF)",
+        "logoImageFileName": "24.jpg",
+        "logoBackgroundColor": "navy",
+        "conference": "AFC",
+        "division": "AFC West"
+    },
+    {
+        "id": "14",
+        "name": "Los Angeles Rams",
+        "aliases": ["rams", "lar", "losangeles"],
+        "colors": "Royal Blue (#002244), Gold (#FFA300), White (#FFFFFF)",
+        "logoImageFileName": "14.jpg",
+        "logoBackgroundColor": "blue",
+        "conference": "NFC",
+        "division": "NFC West"
+    },
+    {
+        "id": "15",
+        "name": "Miami Dolphins",
+        "aliases": ["dolphins", "mia", "miami"],
+        "colors": "Aqua (#008E97), Coral (#FC4C02), White (#FFFFFF)",
+        "logoImageFileName": "15.jpg",
+        "logoBackgroundColor": "aqua",
+        "conference": "AFC",
+        "division": "AFC East"
+    },
+    {
+        "id": "16",
+        "name": "Minnesota Vikings",
+        "aliases": ["vikings", "min", "minnesota"],
+        "colors": "Purple (#4F2683), Gold (#FFC62F), White (#FFFFFF)",
+        "logoImageFileName": "16.jpg",
+        "logoBackgroundColor": "purple",
+        "conference": "NFC",
+        "division": "NFC North"
+    },
+    {
+        "id": "17",
+        "name": "New England Patriots",
+        "aliases": ["patriots", "ne", "newengland"],
+        "colors": "Navy Blue (#002244), Red (#C60C30), Silver (#B0B7BC)",
+        "logoImageFileName": "17.jpg",
+        "logoBackgroundColor": "navy",
+        "conference": "AFC",
+        "division": "AFC East"
+    },
+    {
+        "id": "18",
+        "name": "New Orleans Saints",
+        "aliases": ["saints", "no", "neworleans"],
+        "colors": "Old Gold (#D3BC8D), Black (#000000), White (#FFFFFF)",
+        "logoImageFileName": "18.jpg",
+        "logoBackgroundColor": "gold",
+        "conference": "NFC",
+        "division": "NFC South"
+    },
+    {
+        "id": "19",
+        "name": "New York Giants",
+        "aliases": ["giants", "nyg", "newyork"],
+        "colors": "Blue (#0B2265), Red (#A71930), White (#FFFFFF)",
+        "logoImageFileName": "19.jpg",
+        "logoBackgroundColor": "blue",
+        "conference": "NFC",
+        "division": "NFC East"
+    },
+    {
+        "id": "20",
+        "name": "New York Jets",
+        "aliases": ["jets", "nyj", "newyork"],
+        "colors": "Green (#125740), White (#FFFFFF)",
+        "logoImageFileName": "20.jpg",
+        "logoBackgroundColor": "green",
+        "conference": "AFC",
+        "division": "AFC East"
+    },
+    {
+        "id": "21",
+        "name": "Philadelphia Eagles",
+        "aliases": ["eagles", "phi", "philadelphia"],
+        "colors": "Midnight Green (#004C54), Silver (#A5ACAF), Black (#000000)",
+        "logoImageFileName": "21.jpg",
+        "logoBackgroundColor": "green",
+        "conference": "NFC",
+        "division": "NFC East"
+    },
+    {
+        "id": "23",
+        "name": "Pittsburgh Steelers",
+        "aliases": ["steelers", "pit", "pittsburgh"],
+        "colors": "Black (#000000), Gold (#FFB612), White (#FFFFFF)",
+        "logoImageFileName": "23.jpg",
+        "logoBackgroundColor": "black",
+        "conference": "AFC",
+        "division": "AFC North"
+    },
+    {
+        "id": "25",
+        "name": "San Francisco 49ers",
+        "aliases": ["49ers", "sf", "sanfrancisco"],
+        "colors": "Red (#AA0000), Gold (#B3995D), White (#FFFFFF)",
+        "logoImageFileName": "25.jpg",
+        "logoBackgroundColor": "red",
+        "conference": "NFC",
+        "division": "NFC West"
+    },
+    {
+        "id": "26",
+        "name": "Seattle Seahawks",
+        "aliases": ["seahawks", "sea", "seattle"],
+        "colors": "Navy Blue (#002244), Green (#69BE28), Silver (#A5ACAF)",
+        "logoImageFileName": "26.jpg",
+        "logoBackgroundColor": "navy",
+        "conference": "NFC",
+        "division": "NFC West"
+    },
+    {
+        "id": "27",
+        "name": "Tampa Bay Buccaneers",
+        "aliases": ["buccaneers", "tb", "tampabay"],
+        "colors": "Red (#D50A0A), Pewter (#34302B), Orange (#FF7900)",
+        "logoImageFileName": "27.jpg",
+        "logoBackgroundColor": "red",
+        "conference": "NFC",
+        "division": "NFC South"
+    },
+    {
+        "id": "10",
+        "name": "Tennessee Titans",
+        "aliases": ["titans", "ten", "tennessee"],
+        "colors": "Navy Blue (#002244), Titans Blue (#4B92DB), Red (#C60C30)",
+        "logoImageFileName": "10.jpg",
+        "logoBackgroundColor": "navy",
+        "conference": "AFC",
+        "division": "AFC South"
+    },
+    {
+        "id": "28",
+        "name": "Washington Commanders",
+        "aliases": ["commanders", "was", "washington"],
+        "colors": "Burgundy (#773141), Gold (#FFB612), White (#FFFFFF)",
+        "logoImageFileName": "28.jpg",
+        "logoBackgroundColor": "burgundy",
+        "conference": "NFC",
+        "division": "NFC East"
+    }
+]
