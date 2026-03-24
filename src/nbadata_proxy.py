@@ -53,7 +53,7 @@ class NBARequest(BaseModel):
 def get_current_season() -> str:
     """NBA season spans two years (Oct-Jun). Return the start year."""
     today = datetime.now()
-    return str(today.year if today.month >= 10 else today.year - 1)
+    return str(today.year if today.month >= 10 else today.year + 1)
 
 def format_division_rank(rank: str) -> str:
     try:
