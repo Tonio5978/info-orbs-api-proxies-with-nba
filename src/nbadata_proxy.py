@@ -279,7 +279,7 @@ async def proxy_endpoint(request: Request):
         last_game = next(
             (g for g in sorted(games, key=lambda x: x["date"], reverse=True)
              if parse_nba_date(g["date"]) < today
-             and g.get("status", {}).get("type", {}).get("completed", False)),
+             and g.get("status", {}).get("type", {}).get("completed", True)),
             None
         )
 
@@ -356,7 +356,7 @@ async def proxy_endpoint(request: Request):
         next_game = next(
             (g for g in sorted(games, key=lambda x: x["date"])
              if parse_nba_date(g["date"]) >= today
-             and not g.get("status", {}).get("type", {}).get("completed", True)),
+             and g.get("status", {}).get("type", {}).get("completed", False)),
             None
         )
 
