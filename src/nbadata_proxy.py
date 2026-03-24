@@ -247,6 +247,8 @@ async def proxy_endpoint(request: Request):
 
         # ── Standings ─────────────────────────────────────────────────────────
         record_items = team_info.get("record", {}).get("items", [])
+        home_record = next((item for item in record_items if item.get("type") == "home"), {})
+        road_record = next((item for item in record_items if item.get("type") == "road"), {})
         total_record = next(
             (item for item in record_items if item.get("type") == "total"), {}
         )
@@ -262,8 +264,10 @@ async def proxy_endpoint(request: Request):
                 "losses": int(stats.get("losses", 0)),
                 "winningPercentage": round(float(stats.get("winPercent", 0)), 3),
                 "gamesBehind": stats.get("gamesBehind", "N/A"),
-                "homeRecord": stats.get("homeRecord", "N/A"),
-                "awayRecord": stats.get("roadRecord", "N/A"),
+                #"homeRecord": stats.get("homeRecord", "N/A"),
+                #"awayRecord": stats.get("roadRecord", "N/A"),
+                "homeRecord": home_record.get("summary", "N/A"),  # → "19-15"
+                "awayRecord": road_record.get("summary", "N/A"),  # → "15-23"
                 "lastTen": stats.get("Last10", "N/A"),
                 "streak": stats.get("streak", "N/A"),
                 "pointsFor": stats.get("pointsFor", "N/A"),
