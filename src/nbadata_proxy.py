@@ -292,7 +292,7 @@ async def proxy_endpoint(request: Request):
                 is_home = home.get("team", {}).get("id") == team_id
                 opponent = away["team"] if is_home else home["team"]
                 my_score   = home.get("score", "0").get("displayValue", {}) if is_home else away.get("score", "0").get("displayValue", {})
-                opp_score  = away.get("score", "0") if is_home else home.get("score", "0")
+                opp_score  = away.get("score", "0").get("displayValue", {}) if is_home else home.get("score", "0").get("displayValue", {})
                 won = (is_home and home.get("winner")) or (not is_home and away.get("winner"))
 
                 result["lastGame"] = {
@@ -354,9 +354,9 @@ async def proxy_endpoint(request: Request):
 
         # ── Next Game ─────────────────────────────────────────────────────────
         next_game = next(
-            (g for g in sorted(games, key=lambda x: x["date"], reverse=True)
+            (g for g in sorted(games, key=lambda x: x["date"], reverse=False)
              if parse_nba_date(g["date"]) >= today
-             and g.get("status", {}).get("type", {}).get("completed", False)),
+             and not g.get("status", {}).get("type", {}).get("completed", False)),
             None
         )
 
