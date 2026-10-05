@@ -1,11 +1,13 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional, Tuple
+from zoneinfo import ZoneInfo
 from fastapi import HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from .common import (setup_logger, create_app, fetch_data, check_force_refresh, is_force_requested, handle_request,
                      TTLCache, make_cache_key, get_or_fetch, gather_or_raise, proxy_info)
-from .sports_common import (load_teams, build_team_lookup, resolve_team, parse_colors, format_ordinal, get_display_tz,
+from .sports_common import (DEFAULT_TZ, load_teams, build_team_lookup, resolve_team, parse_colors, format_ordinal, get_display_tz,
                             parse_utc_date, format_game_date, get_day_of_week, format_game_time, get_status_type,
                             find_last_game, find_next_game, split_competitors, get_score_value, get_primary_logo,
                             get_broadcast_name)
@@ -19,6 +21,8 @@ CACHE = TTLCache.from_env_minutes("NBADATA_PROXY_CACHE_LIFE")
 LIVE_CACHE_SECONDS = int(os.getenv("NBADATA_PROXY_LIVE_CACHE_SECONDS", "60"))
 # The scoreboard is the same for every team: fetch it once and share it
 SCOREBOARD_CACHE = TTLCache(int(os.getenv("NBADATA_PROXY_SCOREBOARD_CACHE_SECONDS", "30")))
+# Next day's games (/upcoming) change rarely
+UPCOMING_CACHE = TTLCache.from_env_minutes("NBADATA_PROXY_UPCOMING_CACHE_LIFE", "15")
 
 # Load team data
 TEAMS_DATA = load_teams(Path(__file__).parent / "nba_teams.json", logger)
@@ -29,7 +33,7 @@ app = create_app("nbadata_proxy", default_requests_per_minute=15, banner_title="
     f"Teams loaded: {len(TEAMS_DATA)}",
     f"Cache lifetime: {CACHE.ttl_seconds // 60} minutes ({'enabled' if CACHE.enabled else 'disabled'}), "
     f"{LIVE_CACHE_SECONDS}s during live games",
-    f"Scoreboard cache: {SCOREBOARD_CACHE.ttl_seconds}s",
+    f"Scoreboard cache (/scores): {SCOREBOARD_CACHE.ttl_seconds}s, /upcoming cache: {UPCOMING_CACHE.ttl_seconds // 60} minutes",
 ])
 
 LOGO_DIR = Path("/app/nba_logos")
@@ -87,14 +91,30 @@ async def get_schedule(team_id: str, season: str) -> list:
     return schedule_data["events"]
 
 
+async def fetch_scoreboard(date: Optional[str] = None) -> dict:
+    """ESPN scoreboard as {'date': 'YYYY-MM-DD', 'events': [...]}.
+
+    Without a date, ESPN returns its current scoreboard day, which only rolls over
+    around midday US Eastern time (so in the morning it still shows last night's games).
+    """
+    query = f"dates={date.replace('-', '')}&limit=25" if date else "limit=25"  # An NBA day has at most 15 games
+    scoreboard = await fetch_data(f"{BASE_URL}scoreboard?{query}", logger, app_name="nbadata") or {}
+    day = (scoreboard.get("day") or {}).get("date") or date
+    if not day:
+        day = datetime.now(ZoneInfo(DEFAULT_TZ)).strftime("%Y-%m-%d")
+    return {"date": day, "events": scoreboard.get("events", [])}
+
+
+async def get_current_scoreboard(force: bool = False) -> Tuple[dict, bool]:
+    """Current ESPN scoreboard day, shared by /proxy (live game) and /scores."""
+    return await get_or_fetch(SCOREBOARD_CACHE, "scoreboard", fetch_scoreboard, logger, force=force)
+
+
 async def get_scoreboard(force: bool = False) -> list:
-    """Today's NBA scoreboard (shared by all teams) to detect live games. Never fails the request."""
-    async def fetch():
-        scoreboard = await fetch_data(f"{BASE_URL}scoreboard?limit=25", logger, app_name="nbadata")
-        return scoreboard.get("events", []) if scoreboard else []
+    """Today's NBA scoreboard events to detect live games. Never fails the request."""
     try:
-        events, _ = await get_or_fetch(SCOREBOARD_CACHE, "scoreboard", fetch, logger, force=force)
-        return events
+        scoreboard, _ = await get_current_scoreboard(force)
+        return scoreboard["events"]
     except HTTPException:
         logger.warning("Scoreboard unavailable, live game data skipped")
         return []
@@ -264,6 +284,53 @@ async def proxy_endpoint(request: Request):
     return transform_data(result, cached=cached)
 
 
+def format_scoreboard_game(event: dict) -> dict:
+    """Minimal game summary: ESPN status ('pre', 'in', 'post') and both teams' scores."""
+    competitors = (event.get("competitions") or [{}])[0].get("competitors", [])
+    side = {c.get("homeAway"): c for c in competitors}
+
+    def team(c: dict) -> dict:
+        return {"abbreviation": c.get("team", {}).get("abbreviation", "N/A"), "score": get_score_value(c)}
+
+    return {
+        "gameId": event.get("id", "N/A"),
+        "status": get_status_type(event).get("state", "N/A"),
+        "home": team(side.get("home", {})),
+        "away": team(side.get("away", {})),
+    }
+
+
+def build_scoreboard_response(scoreboard: dict, request: Request, cached: bool) -> dict:
+    """Games of a scoreboard day, optionally filtered with ?team=LAL"""
+    events = sorted(scoreboard["events"], key=lambda e: (e.get("date", ""), e.get("id", "")))
+    team_name = request.query_params.get("team")
+    if team_name:
+        team_id = resolve_team(TEAM_LOOKUP, team_name)
+        events = [e for e in events
+                  if any(c.get("team", {}).get("id") == team_id
+                         for c in (e.get("competitions") or [{}])[0].get("competitors", []))]
+    games = [format_scoreboard_game(e) for e in events]
+    return {"date": scoreboard["date"], "count": len(games), "games": games, "proxy-info": proxy_info(cached)}
+
+
+async def scores_endpoint(request: Request):
+    """All games of the current ESPN scoreboard day: finished, live and upcoming."""
+    force_refresh = check_force_refresh(request, is_force_requested(request))
+    scoreboard, cached = await get_current_scoreboard(force_refresh)
+    return build_scoreboard_response(scoreboard, request, cached)
+
+
+async def upcoming_endpoint(request: Request):
+    """Games of the day after the current ESPN scoreboard day."""
+    force_refresh = check_force_refresh(request, is_force_requested(request))
+    current, _ = await get_current_scoreboard()
+    next_day = (datetime.strptime(current["date"], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+    scoreboard, cached = await get_or_fetch(
+        UPCOMING_CACHE, next_day, lambda: fetch_scoreboard(next_day), logger, force=force_refresh
+    )
+    return build_scoreboard_response(scoreboard, request, cached)
+
+
 @app.get("/debug/teams")
 async def debug_teams():
     return {
@@ -281,3 +348,5 @@ async def debug_teams():
 
 
 handle_request(app, logger, proxy_endpoint, methods=("GET",))
+handle_request(app, logger, scores_endpoint, methods=("GET",), path="/scores")
+handle_request(app, logger, upcoming_endpoint, methods=("GET",), path="/upcoming")

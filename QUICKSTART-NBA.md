@@ -36,6 +36,8 @@ curl "http://localhost/nbadata/proxy?teamName=Lakers"
 | Endpoint | Description |
 |---|---|
 | `GET /nbadata/proxy?teamName=LAL` | Données d'équipe (scores, standings, etc.) |
+| `GET /nbadata/scores` | Tous les matchs de la journée en cours (terminés, en direct, à venir) |
+| `GET /nbadata/upcoming` | Matchs programmés du lendemain |
 | `GET /nbadata/logo/lal.png` | Logo de l'équipe (si téléchargé) |
 | `GET /nbadata/debug/teams` | Liste toutes les équipes et leurs aliases |
 

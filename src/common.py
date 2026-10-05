@@ -3,6 +3,7 @@ import sys
 import os
 import asyncio
 import json as jsonlib
+import re
 import time
 from contextlib import asynccontextmanager
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
@@ -367,12 +368,14 @@ def handle_request(
     methods: Tuple[str, ...] = ("GET", "POST"),
     path: str = "/proxy",
 ):
-    """Register the proxy route with request logging and the app's rate limit."""
+    """Register a route with request logging and the app's rate limit (one counter per route)."""
 
-    @app.api_route(path, methods=list(methods))
-    @app.state.limiter.limit(app.state.rate_limit)
     async def proxy_request(request: Request):
         logger.info(f"{datetime.now().isoformat()} Received {request.method} request: {redact_url(request.url)} from {get_remote_address(request)}")
         return await endpoint_func(request)
 
-    return proxy_request
+    # slowapi keys its counters by function name: give each route its own
+    proxy_request.__name__ = proxy_request.__qualname__ = "proxy_request" + re.sub(r"\W", "_", path)
+    route = app.state.limiter.limit(app.state.rate_limit)(proxy_request)
+    app.api_route(path, methods=list(methods))(route)
+    return route

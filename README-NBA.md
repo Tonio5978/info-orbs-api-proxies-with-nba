@@ -114,7 +114,10 @@ GET http://localhost/nbadata/proxy?teamName=LAL&tz=Europe/Paris   # dates/heures
 | Variable | Défaut | Description |
 |---|---|---|
 | `NBADATA_PROXY_CACHE_LIFE` | `5` | Durée du cache en minutes |
-| `NBADATA_PROXY_REQUESTS_PER_MINUTE` | `15` | Limite rate limiting |
+| `NBADATA_PROXY_REQUESTS_PER_MINUTE` | `15` | Limite rate limiting (par IP et par route) |
+| `NBADATA_PROXY_LIVE_CACHE_SECONDS` | `60` | Durée du cache de `/proxy` pendant un match en direct |
+| `NBADATA_PROXY_SCOREBOARD_CACHE_SECONDS` | `30` | Cache du scoreboard (`/scores` et détection du live) |
+| `NBADATA_PROXY_UPCOMING_CACHE_LIFE` | `15` | Cache de `/upcoming` en minutes |
 
 ---
 
@@ -136,6 +139,34 @@ for abbr in atl bos bkn cha chi cle dal den det gsw hou ind lac lal mem mia mil 
     "https://a.espncdn.com/i/teamlogos/nba/500/scoreboard/${abbr}.png"
 done
 ```
+
+---
+
+## Scores du jour et matchs du lendemain
+
+```
+GET http://localhost/nbadata/scores            # journée en cours : terminés, en direct et à venir
+GET http://localhost/nbadata/upcoming          # matchs programmés du lendemain
+GET http://localhost/nbadata/scores?team=LAL   # filtre optionnel sur une équipe (id, nom ou alias)
+```
+
+La « journée en cours » est celle du scoreboard ESPN : elle ne bascule qu'en milieu de journée (heure de New York),
+donc le matin en Europe `/scores` montre encore les résultats de la nuit. `/upcoming` renvoie le jour suivant.
+
+```json
+{
+  "date": "2026-10-04",
+  "count": 2,
+  "games": [
+    {"gameId": "401914127", "status": "post", "home": {"abbreviation": "DEN", "score": "97"},  "away": {"abbreviation": "UTAH", "score": "109"}},
+    {"gameId": "401918010", "status": "in",   "home": {"abbreviation": "LAC", "score": "88"},  "away": {"abbreviation": "GS",   "score": "85"}}
+  ],
+  "proxy-info": {"cachedResponse": false, "status_code": 200, "timestamp": "2026-10-05T14:38:04.183521"}
+}
+```
+
+`status` est l'état ESPN : `pre` (pas commencé, score `"0"`), `in` (en direct), `post` (terminé).
+Les matchs sont triés par heure de début. `force=true` est accepté comme sur `/proxy`.
 
 ---
 
