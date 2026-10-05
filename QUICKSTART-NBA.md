@@ -47,6 +47,7 @@ curl "http://localhost/nbadata/proxy?teamName=Lakers"
 |---|---|---|---|
 | `teamName` | string (requis) | Nom ou abréviation de l'équipe | `LAL`, `Lakers`, `lakers` |
 | `force` | boolean | Bypass le cache | `force=true` |
+| `tz` | string | Fuseau des dates/heures affichées (défaut `America/New_York`) | `tz=Europe/Paris` |
 
 ---
 

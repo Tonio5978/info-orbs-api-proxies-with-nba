@@ -4,7 +4,8 @@
 
 | Fichier | Destination dans le repo |
 |---|---|
-| `nbadata-proxy.py` | `src/nbadata_proxy.py` |
+| `nbadata_proxy.py` | `src/nbadata_proxy.py` |
+| `sports_common.py` | `src/sports_common.py` (helpers partagés MLB/NFL/NBA) |
 | `nba_teams.json` | `src/nba_teams.json` |
 | Dossier `nba_logos/` | `nba_logos/` (à la racine) |
 
@@ -17,6 +18,7 @@ GET http://localhost/nbadata/proxy?teamName=LAL
 GET http://localhost/nbadata/proxy?teamName=Lakers
 GET http://localhost/nbadata/proxy?teamName=lakers
 GET http://localhost/nbadata/proxy?teamName=LAL&force=true   # bypass cache
+GET http://localhost/nbadata/proxy?teamName=LAL&tz=Europe/Paris   # dates/heures en heure de Paris (défaut America/New_York)
 ```
 
 ---

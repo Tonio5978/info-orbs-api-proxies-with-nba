@@ -1,22 +1,12 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Dict, List, Optional, Tuple
-import os
 from fastapi import HTTPException, Request, status
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from .common import setup_logger, create_app, handle_request
 
 logger = setup_logger("ZONEINFO")
-app = create_app("zoneinfo_proxy")
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info("="*50)
-    logger.info(f"{'ZoneInfo Service Configuration':^50}")
-    logger.info("="*50)
-    logger.info(f"→ Rate limiting: {os.getenv('ZONEINFO_PROXY_REQUESTS_PER_MINUTE', '10')} requests/minute per IP")
-    logger.info("="*50 + "\n")
+app = create_app("zoneinfo_proxy", banner_title="ZoneInfo Service Configuration")
 
 class TimezoneRequest(BaseModel):
     timeZone: str

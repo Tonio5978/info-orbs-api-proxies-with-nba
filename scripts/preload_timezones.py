@@ -5,7 +5,7 @@ import json
 import os
 from pathlib import Path
 import httpx
-from datetime import datetime
+from datetime import datetime, timezone
 from tenacity import retry, stop_after_attempt, wait_exponential
 from dotenv import load_dotenv
 
@@ -33,7 +33,7 @@ TOP_TIMEZONES = [
     if tz.strip()  # Skip empty entries
 ]
 
-CACHE_DB = Path("/var/cache/timezone_proxy/timezone_cache.db")
+CACHE_DB = Path(os.getenv("TIMEZONE_CACHE_DB", "/var/cache/timezone_proxy/timezone_cache.db"))
 API_BASE = "https://timeapi.io/api/timezone/zone"
 REQUEST_DELAY = int(os.getenv("TIMEZONE_PRELOAD_DELAY", "32"))  # seconds
 MAX_RETRIES = int(os.getenv("TIMEZONE_MAX_RETRIES", "3"))
@@ -68,7 +68,7 @@ def save_to_cache(timezone: str, data: dict):
                 "INSERT OR REPLACE INTO timezone_cache (timezone, data) VALUES (?, ?)",
                 (timezone, json.dumps({
                     **data,
-                    "_cached_at": datetime.utcnow().isoformat(),
+                    "_cached_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                     "_source": "batch_preload"
                 }))
             )

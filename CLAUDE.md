@@ -26,7 +26,7 @@ docker-compose exec -u app proxy python -m scripts.preload_timezones
 
 **Request flow:** Client → nginx (port 80) → supervisord-managed uvicorn process → upstream API
 
-Each proxy is an independent FastAPI app running on its own port:
+Each proxy is an independent FastAPI app (`src/<name>_proxy.py`) running on its own port:
 
 | Proxy | Port | Path prefix | Notes |
 |---|---|---|---|
@@ -43,10 +43,14 @@ Each proxy is an independent FastAPI app running on its own port:
 
 **Shared infrastructure (`src/common.py`):**
 - `setup_logger(app_name)` — configures uvicorn logger with app-specific prefix
-- `create_app(app_name)` — creates FastAPI app with slowapi rate limiting middleware
-- `fetch_data(url, logger, ...)` — async HTTP client with optional retry logic
+- `create_app(app_name, default_requests_per_minute, banner_title, banner_lines)` — FastAPI app with lifespan (startup banner, shared httpx client), slowapi rate limiting (`{APP_NAME}_REQUESTS_PER_MINUTE`) and `/health`
+- `fetch_data(url, logger, ...)` — upstream call through the shared httpx client, with optional retry logic
+- `handle_request(app, logger, endpoint, methods, path)` — registers the rate-limited `/proxy` route
+- `TTLCache`, `get_or_fetch`, `make_cache_key`, `proxy_info`, `gather_or_raise` — caching and response helpers
 
-**In-memory caching pattern:** Each proxy maintains a `{cache_key: data}` dict and a `{cache_key: expiry_datetime}` dict. Cache lifetime is controlled by `{PROXY_NAME}_PROXY_CACHE_LIFE` env var (minutes; 0 disables). All proxies support `?force=true` to bypass cache, limited per IP by `check_force_refresh` (`FORCE_REFRESH_PER_MINUTE`, default 2).
+**Sports helpers (`src/sports_common.py`):** team loading/lookup, colors, ordinals, date formatting in a display time zone (`?tz=`, default America/New_York), and ESPN event parsing (status lives on the competition in team schedules, scores are dicts there and strings in the scoreboard).
+
+**In-memory caching pattern:** Each proxy uses a `TTLCache` from `common.py` with `get_or_fetch()`, which serves fresh entries, fetches once per key under concurrent requests (per-key lock) and falls back to the stale entry if the upstream fails. Proxies register their route with `handle_request()`; the rate limit comes from `create_app(app_name, default_requests_per_minute)`. Cache lifetime is controlled by `{PROXY_NAME}_PROXY_CACHE_LIFE` env var (minutes; 0 disables). All proxies support `?force=true` to bypass cache, limited per IP by `check_force_refresh` (`FORCE_REFRESH_PER_MINUTE`, default 2).
 
 **Security conventions:** proxy processes run as the unprivileged `app` user (supervisord `user=app`). Never log raw URLs or params — use `redact_url` / `redact_params` from `common.py`. Upstream error bodies are logged server-side only; clients get a generic message. Each app exposes `GET /health` (rate-limit exempt, no upstream call).
 
