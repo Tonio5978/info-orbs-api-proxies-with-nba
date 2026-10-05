@@ -7,7 +7,7 @@ services:
     volumes:
       - timezone_cache:/var/cache/timezone_proxy
       - ./mlb_logos:/app/mlb_logos
-      - ./nlf_logos:/app/nfl_logos
+      - ./nfl_logos:/app/nfl_logos
       - ./nba_logos:/app/nba_logos
     restart: unless-stopped
     logging:

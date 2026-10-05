@@ -87,20 +87,22 @@ def parse_nba_date(date_str: str) -> datetime:
     raise ValueError(f"Time data '{date_str}' doesn't match expected formats")
 
 def format_game_date(date_str: str) -> str:
+    """Format as 'Apr 2' in ET, consistent with format_game_time."""
     if not date_str or date_str == "N/A":
         return "N/A"
     try:
         date_obj = parse_nba_date(date_str) if isinstance(date_str, str) else date_str
-        return date_obj.strftime("%b %-d")
+        return date_obj.astimezone(ZoneInfo("America/New_York")).strftime("%b %-d")
     except (ValueError, AttributeError):
         return "N/A"
 
 def get_day_of_week(date_str: str) -> str:
+    """Abbreviated day of week in ET, consistent with format_game_time."""
     if not date_str or date_str == "N/A":
         return "N/A"
     try:
         date_obj = parse_nba_date(date_str) if isinstance(date_str, str) else date_str
-        return date_obj.strftime("%a")
+        return date_obj.astimezone(ZoneInfo("America/New_York")).strftime("%a")
     except (ValueError, AttributeError):
         return "N/A"
 
@@ -116,15 +118,19 @@ def format_game_time(time_str: str) -> str:
     except ValueError:
         return time_str
 
-def format_game_score(score: str, quarter: int, clock: str, status_state: str) -> str:
-    """Format live score with quarter and clock info."""
-    if status_state == "post":
-        return score
-    if status_state == "in":
-        quarter_names = {1: "Q1", 2: "Q2", 3: "Q3", 4: "Q4", 5: "OT"}
-        q_label = quarter_names.get(quarter, f"Q{quarter}")
-        return f"{score} ({q_label} {clock})"
-    return score
+def format_period(period: int) -> str:
+    """Q1-Q4 for regulation, then OT, 2OT, 3OT..."""
+    if period <= 4:
+        return f"Q{period}"
+    overtime = period - 4
+    return "OT" if overtime == 1 else f"{overtime}OT"
+
+def get_score_value(competitor: dict) -> str:
+    """ESPN returns the score as a dict in schedules and as a string in the scoreboard."""
+    score = competitor.get("score", "0")
+    if isinstance(score, dict):
+        return score.get("displayValue", "0")
+    return str(score)
 
 def get_cache_key(params: dict) -> str:
     return json.dumps({k: v for k, v in params.items() if k != 'force'}, sort_keys=True)
@@ -295,8 +301,8 @@ async def proxy_endpoint(request: Request):
                 away = next((c for c in competitors if c["homeAway"] == "away"), competitors[1])
                 is_home = home.get("team", {}).get("id") == team_id
                 opponent = away["team"] if is_home else home["team"]
-                my_score   = home.get("score", "0").get("displayValue", {}) if is_home else away.get("score", "0").get("displayValue", {})
-                opp_score  = away.get("score", "0").get("displayValue", {}) if is_home else home.get("score", "0").get("displayValue", {})
+                my_score   = get_score_value(home if is_home else away)
+                opp_score  = get_score_value(away if is_home else home)
                 won = (is_home and home.get("winner")) or (not is_home and away.get("winner"))
 
                 result["lastGame"] = {
@@ -332,14 +338,13 @@ async def proxy_endpoint(request: Request):
                 away = next((c for c in competitors if c["homeAway"] == "away"), competitors[1])
                 is_home = home.get("team", {}).get("id") == team_id
                 opponent = away["team"] if is_home else home["team"]
-                my_score  = home.get("score", "0") if is_home else away.get("score", "0")
-                opp_score = away.get("score", "0") if is_home else home.get("score", "0")
+                my_score  = get_score_value(home if is_home else away)
+                opp_score = get_score_value(away if is_home else home)
                 status    = live_event.get("status", {})
                 quarter   = status.get("period", 0)
                 clock     = status.get("displayClock", "")
 
-                quarter_names = {1: "Q1", 2: "Q2", 3: "Q3", 4: "Q4", 5: "OT"}
-                q_label = quarter_names.get(quarter, f"Q{quarter}")
+                q_label = format_period(quarter)
 
                 result["liveGame"] = {
                     "isLive": True,

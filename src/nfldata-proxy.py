@@ -90,7 +90,7 @@ def format_game_date(date_str: str) -> str:
         return "N/A"
     try:
         date_obj = parse_nfl_date(date_str) if isinstance(date_str, str) else date_str
-        return date_obj.strftime("%b %-d")
+        return date_obj.astimezone(ZoneInfo("America/New_York")).strftime("%b %-d")
     except (ValueError, AttributeError):
         return "N/A"
 
@@ -125,7 +125,7 @@ def get_day_of_week(date_str: str) -> str:
         return "N/A"
     try:
         date_obj = parse_nfl_date(date_str) if isinstance(date_str, str) else date_str
-        return date_obj.strftime("%a")
+        return date_obj.astimezone(ZoneInfo("America/New_York")).strftime("%a")
     except (ValueError, AttributeError):
         return "N/A"
 

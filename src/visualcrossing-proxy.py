@@ -101,7 +101,8 @@ async def proxy_endpoint(request: Request):
         "iconSet": icon_set,
         "lang": lang
     }
-    cache_key = get_cache_key(params)
+    # Location and timeframe are path parameters, so include them explicitly in the cache key
+    cache_key = get_cache_key({**params, "location": location, "timeframe": timeframe})
     
     # Check cache if enabled and not forcing refresh
     if CACHE_LIFE_MINUTES > 0 and not force_refresh:

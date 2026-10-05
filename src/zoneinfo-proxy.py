@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
 import os
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -31,33 +31,53 @@ def format_offset_nanoseconds(offset: timedelta) -> Dict:
         "nanoseconds": total_seconds * 1_000_000_000
     }
 
-def calculate_dst_interval(zone: ZoneInfo, now: datetime) -> Optional[Dict]:
-    """Calculate DST interval details if applicable"""
-    if not zone.dst(now):
-        return None
+def is_dst_at(zone: ZoneInfo, ts: int) -> bool:
+    return bool(datetime.fromtimestamp(ts, zone).dst())
 
-    # Find next transition (approximation since zoneinfo doesn't expose transitions directly)
+def find_dst_transitions(zone: ZoneInfo, start: datetime, end: datetime) -> List[Tuple[datetime, bool]]:
+    """Find DST transitions between start and end as (utc_instant, dst_active_after) tuples.
+
+    zoneinfo doesn't expose transitions directly, so scan day by day and
+    bisect each detected change down to the exact second.
+    """
+    ts = int(start.timestamp())
+    end_ts = int(end.timestamp())
+    state = is_dst_at(zone, ts)
+    transitions = []
+    while ts < end_ts:
+        next_ts = ts + 86400
+        if is_dst_at(zone, next_ts) != state:
+            lo, hi = ts, next_ts
+            while hi - lo > 1:
+                mid = (lo + hi) // 2
+                if is_dst_at(zone, mid) == state:
+                    lo = mid
+                else:
+                    hi = mid
+            state = not state
+            transitions.append((datetime.fromtimestamp(hi, ZoneInfo("UTC")), state))
+        ts = next_ts
+    return transitions
+
+def calculate_dst_interval(zone: ZoneInfo, now: datetime) -> Optional[Dict]:
+    """Return the current DST interval if DST is active, otherwise the next one"""
+    transitions = find_dst_transitions(zone, now - timedelta(days=366), now + timedelta(days=366))
+
     dst_start, dst_end = None, None
-    current_year = now.year
-    
-    # Try to find transitions by checking each day (simplified approach)
-    for month in range(1, 13):
-        for day in range(1, 29):
-            test_date = datetime(current_year, month, day, tzinfo=zone)
-            if zone.dst(test_date) and not zone.dst(test_date - timedelta(days=1)):
-                dst_start = test_date
-            elif not zone.dst(test_date) and zone.dst(test_date - timedelta(days=1)):
-                dst_end = test_date
-    
+    for (start, started), (end, _) in zip(transitions, transitions[1:]):
+        if started and end > now:
+            dst_start, dst_end = start, end
+            break
+
     if not dst_start or not dst_end:
         return None
 
-    dst_offset = zone.dst(now)
-    standard_offset = zone.utcoffset(now) - dst_offset
+    in_dst = dst_start.astimezone(zone)
+    dst_offset = zone.dst(in_dst)
 
     return {
-        "dstName": now.strftime("%Z"),
-        "dstOffsetToUtc": format_offset_nanoseconds(zone.utcoffset(now)),
+        "dstName": in_dst.strftime("%Z"),
+        "dstOffsetToUtc": format_offset_nanoseconds(zone.utcoffset(in_dst)),
         "dstOffsetToStandardTime": format_offset_nanoseconds(dst_offset),
         "dstStart": dst_start.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "dstEnd": dst_end.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -92,8 +112,9 @@ def get_zoneinfo_data(timezone: str) -> Dict:
         zone = ZoneInfo(timezone)
         now = datetime.now(zone)
         
-        has_dst = zone.dst(now) is not None
-        is_dst_active = has_dst and zone.dst(now).total_seconds() > 0
+        dst_interval = calculate_dst_interval(zone, now)
+        has_dst = dst_interval is not None
+        is_dst_active = bool(zone.dst(now))
         standard_offset = zone.utcoffset(now) - (zone.dst(now) if zone.dst(now) else timedelta(0))
 
         return {
@@ -103,7 +124,7 @@ def get_zoneinfo_data(timezone: str) -> Dict:
             "standardUtcOffset": format_offset_nanoseconds(standard_offset),
             "hasDayLightSaving": has_dst,
             "isDayLightSavingActive": is_dst_active,
-            "dstInterval": calculate_dst_interval(zone, now),
+            "dstInterval": dst_interval,
             "_cached_at": datetime.now(ZoneInfo("UTC")).isoformat(),
             "_source": "python-zoneinfo"
         }

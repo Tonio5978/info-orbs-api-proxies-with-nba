@@ -150,6 +150,14 @@ def format_game_time(time_str: str) -> str:
     except ValueError:
         return time_str
 
+def get_et_date(game_date: str) -> str:
+    """Convert a UTC gameDate to its YYYY-MM-DD date in ET, consistent with format_game_time"""
+    try:
+        utc_time = datetime.strptime(game_date, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        return utc_time.astimezone(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+    except ValueError:
+        return game_date[:10]
+
 def get_cache_key(params: dict) -> str:
     """Generate a unique cache key from request parameters"""
     cache_params = params.copy()
@@ -318,7 +326,7 @@ async def proxy_endpoint(request: Request):
             if datetime.strptime(g["gameDate"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) < today
             and g["status"]["detailedState"] == "Final"), None
         )
-        last_game_date = last_game["gameDate"][:10] if last_game else "N/A"
+        last_game_date = get_et_date(last_game["gameDate"]) if last_game else "N/A"
         result["lastGame"] = {
             "date": format_game_date(last_game_date),
             "day": get_day_of_week(last_game_date),
@@ -354,7 +362,7 @@ async def proxy_endpoint(request: Request):
              if datetime.strptime(g["gameDate"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) >= today
              and g["status"]["detailedState"] in ["Scheduled", "Pre-Game"]), None
         )
-        next_game_date = next_game["gameDate"][:10] if next_game else "N/A"
+        next_game_date = get_et_date(next_game["gameDate"]) if next_game else "N/A"
         result["nextGame"] = {
             "date": format_game_date(next_game_date),
             "day": get_day_of_week(next_game_date),

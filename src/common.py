@@ -54,7 +54,7 @@ def create_app(app_name: str, rate_limit: str = None) -> FastAPI:
             if isinstance(detail, str) and "per" in detail:
                 limit = detail.split(":")[-1].strip()
         except Exception as e:
-            logger.error(f"Error parsing rate limit details: {str(e)}")
+            logging.getLogger("uvicorn").error(f"Error parsing rate limit details: {str(e)}")
         
         return JSONResponse(
             status_code=429,
