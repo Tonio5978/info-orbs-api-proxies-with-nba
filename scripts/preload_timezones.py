@@ -5,7 +5,7 @@ import json
 import os
 from pathlib import Path
 import httpx
-from datetime import datetime, timezone
+from datetime import datetime, timezone as dt_timezone
 from tenacity import retry, stop_after_attempt, wait_exponential
 from dotenv import load_dotenv
 
@@ -68,7 +68,7 @@ def save_to_cache(timezone: str, data: dict):
                 "INSERT OR REPLACE INTO timezone_cache (timezone, data) VALUES (?, ?)",
                 (timezone, json.dumps({
                     **data,
-                    "_cached_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                    "_cached_at": datetime.now(dt_timezone.utc).replace(tzinfo=None).isoformat(),
                     "_source": "batch_preload"
                 }))
             )

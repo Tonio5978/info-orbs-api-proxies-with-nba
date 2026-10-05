@@ -33,9 +33,11 @@ def redact_params(params: Optional[dict]) -> Optional[dict]:
 
 
 def redact_url(url) -> str:
-    """Return the URL with sensitive query parameter values masked."""
+    """Return the URL (or path?query) with sensitive query parameter values masked."""
     parts = urlsplit(str(url))
     if not parts.query:
+        return str(url)
+    if not any(k.lower() in SENSITIVE_PARAMS for k, _ in parse_qsl(parts.query, keep_blank_values=True)):
         return str(url)
     query = urlencode(
         [(k, "***" if k.lower() in SENSITIVE_PARAMS else v) for k, v in parse_qsl(parts.query, keep_blank_values=True)],
@@ -190,6 +192,17 @@ async def gather_or_raise(*aws):
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 
+class RedactAccessLogFilter(logging.Filter):
+    """Mask API keys in uvicorn access log lines (args: client, method, path?query, http version, status)."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple) and len(record.args) >= 3:
+            args = list(record.args)
+            args[2] = redact_url(args[2])
+            record.args = tuple(args)
+        return True
+
+
 def setup_logger(app_name: str) -> logging.Logger:
     """Set up a logger with an app-specific prefix for both app and access logs."""
     # Get the base Uvicorn logger
@@ -207,6 +220,8 @@ def setup_logger(app_name: str) -> logging.Logger:
     access_logger.handlers.clear()  # Clear default access handlers
     access_logger.addHandler(handler)  # Use the same handler with app prefix
     access_logger.setLevel(logging.INFO)
+    if not any(isinstance(f, RedactAccessLogFilter) for f in access_logger.filters):
+        access_logger.addFilter(RedactAccessLogFilter())
 
     return logger
 
