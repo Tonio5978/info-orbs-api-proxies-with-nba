@@ -63,7 +63,7 @@ The NBA proxy aggregates ESPN API data into a single response per team containin
 - `nextGame` — upcoming scheduled game
 - `liveGame` — live game data from scoreboard (only present if team is currently playing)
 
-Two more routes summarize whole days from the ESPN scoreboard, as `{date, count, games: [{gameId, status (pre/in/post), home/away: {abbreviation, score}}]}`: `GET /nbadata/scores` (current ESPN scoreboard day, which rolls over around midday ET; cached with the scoreboard shared by `/proxy`) and `GET /nbadata/upcoming` (the following day, `NBADATA_PROXY_UPCOMING_CACHE_LIFE`). Both accept `?team=`. Each route registered with `handle_request` gets its own rate-limit counter.
+Two more routes summarize whole days from the ESPN scoreboard, as `{date, count, games: [{gameId, status (pre/in/post), startTime, home/away: {abbreviation, score}}]}`: `GET /nbadata/scores` (current ESPN scoreboard day, which rolls over around midday ET; cached with the scoreboard shared by `/proxy`) and `GET /nbadata/upcoming` (the following day, `NBADATA_PROXY_UPCOMING_CACHE_LIFE`). Both accept `?team=` and `?tz=` (start times). Each route registered with `handle_request` gets its own rate-limit counter.
 
 Team lookup uses `src/nba_teams.json` (loaded at startup), supporting team ID, full name, or any alias. Debug endpoint: `GET /nbadata/debug/teams`.
 

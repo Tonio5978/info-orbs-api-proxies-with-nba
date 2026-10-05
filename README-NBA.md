@@ -148,6 +148,7 @@ done
 GET http://localhost/nbadata/scores            # journée en cours : terminés, en direct et à venir
 GET http://localhost/nbadata/upcoming          # matchs programmés du lendemain
 GET http://localhost/nbadata/scores?team=LAL   # filtre optionnel sur une équipe (id, nom ou alias)
+GET http://localhost/nbadata/upcoming?tz=Europe/Paris   # heures de début en heure de Paris (défaut America/New_York)
 ```
 
 La « journée en cours » est celle du scoreboard ESPN : elle ne bascule qu'en milieu de journée (heure de New York),
@@ -158,14 +159,16 @@ donc le matin en Europe `/scores` montre encore les résultats de la nuit. `/upc
   "date": "2026-10-04",
   "count": 2,
   "games": [
-    {"gameId": "401914127", "status": "post", "home": {"abbreviation": "DEN", "score": "97"},  "away": {"abbreviation": "UTAH", "score": "109"}},
-    {"gameId": "401918010", "status": "in",   "home": {"abbreviation": "LAC", "score": "88"},  "away": {"abbreviation": "GS",   "score": "85"}}
+    {"gameId": "401914127", "status": "post", "startTime": "7:00 PM", "home": {"abbreviation": "DEN", "score": "97"},  "away": {"abbreviation": "UTAH", "score": "109"}},
+    {"gameId": "401918010", "status": "in",   "startTime": "7:00 PM", "home": {"abbreviation": "LAC", "score": "88"},  "away": {"abbreviation": "GS",   "score": "85"}}
   ],
   "proxy-info": {"cachedResponse": false, "status_code": 200, "timestamp": "2026-10-05T14:38:04.183521"}
 }
 ```
 
 `status` est l'état ESPN : `pre` (pas commencé, score `"0"`), `in` (en direct), `post` (terminé).
+`startTime` est l'heure de début (`7:00 PM`) dans le fuseau `tz`. Attention : avec `tz=Europe/Paris`, un match du soir
+aux États-Unis commence le lendemain matin en heure de Paris (`4:00 AM`), le champ ne contient que l'heure.
 Les matchs sont triés par heure de début. `force=true` est accepté comme sur `/proxy`.
 
 ---

@@ -284,8 +284,8 @@ async def proxy_endpoint(request: Request):
     return transform_data(result, cached=cached)
 
 
-def format_scoreboard_game(event: dict) -> dict:
-    """Minimal game summary: ESPN status ('pre', 'in', 'post') and both teams' scores."""
+def format_scoreboard_game(event: dict, tz) -> dict:
+    """Minimal game summary: ESPN status ('pre', 'in', 'post'), start time and both teams' scores."""
     competitors = (event.get("competitions") or [{}])[0].get("competitors", [])
     side = {c.get("homeAway"): c for c in competitors}
 
@@ -295,13 +295,15 @@ def format_scoreboard_game(event: dict) -> dict:
     return {
         "gameId": event.get("id", "N/A"),
         "status": get_status_type(event).get("state", "N/A"),
+        "startTime": format_game_time(event.get("date", ""), tz),
         "home": team(side.get("home", {})),
         "away": team(side.get("away", {})),
     }
 
 
 def build_scoreboard_response(scoreboard: dict, request: Request, cached: bool) -> dict:
-    """Games of a scoreboard day, optionally filtered with ?team=LAL"""
+    """Games of a scoreboard day, optionally filtered with ?team=LAL, start times in ?tz= (default ET)"""
+    tz = get_display_tz(request)
     events = sorted(scoreboard["events"], key=lambda e: (e.get("date", ""), e.get("id", "")))
     team_name = request.query_params.get("team")
     if team_name:
@@ -309,7 +311,7 @@ def build_scoreboard_response(scoreboard: dict, request: Request, cached: bool) 
         events = [e for e in events
                   if any(c.get("team", {}).get("id") == team_id
                          for c in (e.get("competitions") or [{}])[0].get("competitors", []))]
-    games = [format_scoreboard_game(e) for e in events]
+    games = [format_scoreboard_game(e, tz) for e in events]
     return {"date": scoreboard["date"], "count": len(games), "games": games, "proxy-info": proxy_info(cached)}
 
 
