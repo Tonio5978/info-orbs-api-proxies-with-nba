@@ -21,7 +21,7 @@ dc up -d --build
 ### Preload top 50 timezones
 
 ```bash
-dc exec proxy python -m scripts.preload_timezones
+dc exec -u app proxy python -m scripts.preload_timezones
 ```
 
 ### Check sqldb for existing record

@@ -4,14 +4,59 @@ import os
 import asyncio
 from typing import Callable, Optional
 from datetime import datetime
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from limits import parse as parse_limit
+from limits.storage import MemoryStorage
+from limits.strategies import MovingWindowRateLimiter
 from slowapi import Limiter
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+
+
+# Query/body parameter names whose values must never appear in logs
+SENSITIVE_PARAMS = {"appid", "apikey", "api_key", "key", "token", "access_token"}
+
+
+def redact_params(params: Optional[dict]) -> Optional[dict]:
+    """Return a copy of params with sensitive values masked."""
+    if not params:
+        return params
+    return {k: ("***" if k.lower() in SENSITIVE_PARAMS else v) for k, v in params.items()}
+
+
+def redact_url(url) -> str:
+    """Return the URL with sensitive query parameter values masked."""
+    parts = urlsplit(str(url))
+    if not parts.query:
+        return str(url)
+    query = urlencode(
+        [(k, "***" if k.lower() in SENSITIVE_PARAMS else v) for k, v in parse_qsl(parts.query, keep_blank_values=True)],
+        safe="*",
+    )
+    return urlunsplit(parts._replace(query=query))
+
+
+# Separate, stricter limit for ?force=true, which bypasses the cache and always hits the upstream API
+FORCE_REFRESH_LIMIT = parse_limit(os.getenv("FORCE_REFRESH_PER_MINUTE", "2") + "/minute")
+_force_limiter = MovingWindowRateLimiter(MemoryStorage())
+
+
+def check_force_refresh(request: Request, requested: bool) -> bool:
+    """Return True if a forced refresh is requested and allowed, raise 429 if the client exceeds the force limit."""
+    if not requested:
+        return False
+    if not _force_limiter.hit(FORCE_REFRESH_LIMIT, "force", get_remote_address(request)):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many forced refreshes, limit is {FORCE_REFRESH_LIMIT}. Retry without force=true to get cached data.",
+            headers={"Retry-After": "60"},
+        )
+    return True
 
 
 def setup_logger(app_name: str) -> logging.Logger:
@@ -66,6 +111,12 @@ def create_app(app_name: str, rate_limit: str = None) -> FastAPI:
             headers={"Retry-After": str(retry_after), "X-RateLimit-Limit": limit}
         )
 
+    @app.get("/health")
+    @limiter.exempt
+    async def health():
+        """Liveness check that doesn't call any upstream API."""
+        return {"status": "ok", "service": app_name}
+
     return app
 
 
@@ -79,8 +130,8 @@ async def fetch_data(
     app_name: str = ""
 ) -> dict:
     """Generic function to fetch data from an API with optional retries."""
-    logger.info(f"Sending {method} request to {url} with params={params} json={json}")
-    
+    logger.info(f"Sending {method} request to {redact_url(url)} with params={redact_params(params)} json={redact_params(json)}")
+
     max_retries = int(os.getenv(f"{app_name.upper()}_MAX_RETRIES", "0"))
     retry_delay = int(os.getenv(f"{app_name.upper()}_RETRY_DELAY", "0"))
     
@@ -95,21 +146,33 @@ async def fetch_data(
                 else:
                     raise ValueError(f"Unsupported method: {method}")
                 response.raise_for_status()
-                return response.json()
+                try:
+                    return response.json()
+                except ValueError:
+                    logger.error(f"Upstream returned non-JSON response from {redact_url(url)}")
+                    raise HTTPException(status_code=502, detail="Upstream API returned an invalid response")
         except httpx.HTTPStatusError as e:
             last_error = e
             if max_retries > 0 and e.response.status_code == 502 and attempt < max_retries:
                 logger.warning(f"502 Bad Gateway - Attempt {attempt + 1}/{max_retries + 1}")
                 await asyncio.sleep(retry_delay)
                 continue
-            raise HTTPException(status_code=e.response.status_code, detail=f"API error: {e.response.text}")
+            # Log upstream details server-side only, they may contain internal information
+            body = e.response.text[:500]
+            # Some APIs echo the key back in their error message
+            secrets = [v for k, v in parse_qsl(urlsplit(str(e.request.url)).query) if k.lower() in SENSITIVE_PARAMS and v]
+            for secret in secrets:
+                body = body.replace(secret, "***")
+            logger.error(f"Upstream HTTP {e.response.status_code} from {redact_url(e.request.url)}: {body}")
+            raise HTTPException(status_code=e.response.status_code, detail=f"Upstream API returned HTTP {e.response.status_code}")
         except httpx.RequestError as e:
             last_error = e
             if max_retries > 0 and attempt < max_retries:
                 logger.warning(f"Network error - Attempt {attempt + 1}/{max_retries + 1}")
                 await asyncio.sleep(retry_delay)
                 continue
-            raise HTTPException(status_code=502, detail=f"Proxy error: {str(e)}")
+            logger.error(f"Upstream request to {redact_url(url)} failed: {type(e).__name__}")
+            raise HTTPException(status_code=502, detail="Upstream API unreachable")
     raise last_error if last_error else HTTPException(502, "Unknown proxy error")
 
 
@@ -125,7 +188,7 @@ def handle_request(
     @app.api_route("/proxy", methods=["GET", "POST"])
     @app.state.limiter.limit(limit)
     async def proxy_request(request: Request):
-        logger.info(f"{datetime.now().isoformat()} Received {request.method} request: {request.url} from {get_remote_address(request)}")
+        logger.info(f"{datetime.now().isoformat()} Received {request.method} request: {redact_url(request.url)} from {get_remote_address(request)}")
         return await endpoint_func(request)
     
     return proxy_request

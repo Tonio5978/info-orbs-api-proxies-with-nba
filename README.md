@@ -45,7 +45,10 @@ This repository contains API proxies for the [InfoOrbs project](https://github.c
 - **Parqet Proxy URL:**  
   Example: `http://localhost/parqet/proxy`
 
-> All proxies (except zoneinfo) support `force=true` parameter to bypass cache.
+> All proxies (except zoneinfo) support `force=true` parameter to bypass cache. Forced refreshes are limited per client IP
+> (`FORCE_REFRESH_PER_MINUTE`, default 2/minute per proxy); above that limit the proxy returns HTTP 429.
+>
+> Each proxy also exposes a local health check at `/<proxy>/health` (e.g. `http://localhost/mlbdata/health`).
 
 ## Installation
 
@@ -82,7 +85,7 @@ dc up -d --build
 Preloads top 50 timezones (covers 95% of world population):
 
 ```bash
-dc exec proxy python -m scripts.preload_timezones
+dc exec -u app proxy python -m scripts.preload_timezones
 ```
 
 ### Common Commands

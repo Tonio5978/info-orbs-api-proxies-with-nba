@@ -2,10 +2,11 @@ import os
 from datetime import datetime, timedelta
 from typing import Literal, Dict, Optional
 import json
+from urllib.parse import quote
 from fastapi import HTTPException, Request
 from pydantic import BaseModel
 from slowapi.util import get_remote_address
-from .common import setup_logger, create_app, fetch_data
+from .common import setup_logger, create_app, fetch_data, check_force_refresh, redact_url
 
 logger = setup_logger("VISUALCROSSING")
 app = create_app("visualcrossing_proxy")
@@ -79,6 +80,8 @@ async def proxy_endpoint(request: Request):
     
     location = path_parts[2]
     timeframe = path_parts[3]
+    if location in (".", "..") or timeframe in (".", ".."):
+        raise HTTPException(status_code=400, detail="Invalid location or timeframe")
 
     # Get query parameters
     unit_group = request.query_params.get("unitGroup", "us")
@@ -86,7 +89,7 @@ async def proxy_endpoint(request: Request):
     icon_set = request.query_params.get("iconSet", "icons1")
     lang = request.query_params.get("lang", "en")
     api_key = request.query_params.get("key")
-    force_refresh = request.query_params.get("force", "").lower() == "true"
+    force_refresh = check_force_refresh(request, request.query_params.get("force", "").lower() == "true")
     
     if not api_key:
         if VISUALCROSSING_DEFAULT_API_KEY:
@@ -116,7 +119,8 @@ async def proxy_endpoint(request: Request):
     # Fetch fresh data
     logger.info(f"Fetching live data for {location}/{timeframe}{' (forced refresh)' if force_refresh else ''}")
     try:
-        url = f"{VISUALCROSSING_API_BASE}/{location}/{timeframe}"
+        # Encode path segments so they can't alter the upstream path
+        url = f"{VISUALCROSSING_API_BASE}/{quote(location, safe=',')}/{quote(timeframe, safe=',')}"
         # Remove force parameter before making API call
         api_params = params.copy()
         api_params.pop('force', None)
@@ -142,5 +146,5 @@ async def proxy_endpoint(request: Request):
 @app.api_route("/proxy/{location}/{timeframe}", methods=["GET"])
 @app.state.limiter.limit(os.getenv("VISUALCROSSING_PROXY_REQUESTS_PER_MINUTE", "5") + "/minute")
 async def visualcrossing_proxy(request: Request):
-    logger.info(f"{datetime.now().isoformat()} Received {request.method} request: {request.url} from {get_remote_address(request)}")
+    logger.info(f"{datetime.now().isoformat()} Received {request.method} request: {redact_url(request.url)} from {get_remote_address(request)}")
     return await proxy_endpoint(request)

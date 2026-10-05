@@ -5,7 +5,7 @@ import json
 from fastapi import HTTPException, Request
 from pydantic import BaseModel
 from slowapi.util import get_remote_address
-from .common import setup_logger, create_app, fetch_data
+from .common import setup_logger, create_app, fetch_data, check_force_refresh, redact_url
 
 logger = setup_logger("OPENWEATHER")
 app = create_app("openweather_proxy")
@@ -66,7 +66,7 @@ async def proxy_endpoint(request: Request):
     lang = request.query_params.get("lang", "en")
     cnt = request.query_params.get("cnt", "3")
     appid = request.query_params.get("appid")
-    force_refresh = request.query_params.get("force", "").lower() == "true"
+    force_refresh = check_force_refresh(request, request.query_params.get("force", "").lower() == "true")
     
     if not lat or not lon:
         raise HTTPException(status_code=400, detail="Latitude and longitude parameters are required")
@@ -125,5 +125,5 @@ async def proxy_endpoint(request: Request):
 @app.api_route("/proxy", methods=["GET"])
 @app.state.limiter.limit(os.getenv("OPENWEATHER_PROXY_REQUESTS_PER_MINUTE", "5") + "/minute")
 async def openweather_proxy(request: Request):
-    logger.info(f"{datetime.now().isoformat()} Received {request.method} request: {request.url} from {get_remote_address(request)}")
+    logger.info(f"{datetime.now().isoformat()} Received {request.method} request: {redact_url(request.url)} from {get_remote_address(request)}")
     return await proxy_endpoint(request)

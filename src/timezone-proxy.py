@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from .common import setup_logger, create_app, fetch_data, handle_request
+from .common import setup_logger, create_app, fetch_data, handle_request, check_force_refresh
 
 logger = setup_logger("TIMEZONE")
 app = create_app("timezone_proxy")
@@ -134,14 +134,16 @@ async def proxy_endpoint(request: Request):
             detail={"error": "missing_parameter", "message": "timeZone parameter is required"}
         )
 
+    force = check_force_refresh(request, bool(force))
     if not force:
         cached_data = get_cached_response(timezone)
         if cached_data and not should_bypass_cache(cached_data):
             logger.info(f"Cache hit for {timezone}")
             return create_response(cached_data, True)
 
-    url = f"{TIME_API_BASE}?timeZone={timezone}&futureChanges=true"
-    raw_data = await fetch_data(url, logger, method="GET", app_name="timezone")
+    # Pass the timezone as an encoded query parameter so it can't inject extra parameters
+    raw_data = await fetch_data(TIME_API_BASE, logger, method="GET",
+                                params={"timeZone": timezone, "futureChanges": "true"}, app_name="timezone")
     save_response_to_cache(timezone, raw_data)
     logger.info(f"Data fetched for {timezone}")
     return create_response(raw_data, False)

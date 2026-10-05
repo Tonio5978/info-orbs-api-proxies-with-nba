@@ -4,7 +4,7 @@ services:
     env: docker
     dockerfilePath: ./Dockerfile
     port: 80
-    healthCheckPath: /mlbdata/proxy?teamName=yankees
+    healthCheckPath: /mlbdata/health # Local check, doesn't call the MLB API
     healthCheckInitialDelay: 30 # Give more time for all services to start
     disk:
       name: timezone_cache

@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from fastapi import HTTPException, Request
 from pydantic import BaseModel
 from slowapi.util import get_remote_address
-from .common import setup_logger, create_app, fetch_data
+from .common import setup_logger, create_app, fetch_data, check_force_refresh
 
 logger = setup_logger("NFLDATA")
 app = create_app("nfldata_proxy")
@@ -183,7 +183,7 @@ async def proxy_endpoint(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
     season = get_current_season()
-    force_refresh = request.query_params.get("force", "").lower() == "true"
+    force_refresh = check_force_refresh(request, request.query_params.get("force", "").lower() == "true")
     params = {"teamId": team_id, "season": season}
     cache_key = get_cache_key(params)
     

@@ -19,7 +19,7 @@ docker-compose restart proxy
 docker-compose exec proxy bash
 
 # Preload timezone cache
-docker-compose exec proxy python -m scripts.preload_timezones
+docker-compose exec -u app proxy python -m scripts.preload_timezones
 ```
 
 ## Architecture
@@ -46,7 +46,9 @@ Each proxy is an independent FastAPI app running on its own port:
 - `create_app(app_name)` — creates FastAPI app with slowapi rate limiting middleware
 - `fetch_data(url, logger, ...)` — async HTTP client with optional retry logic
 
-**In-memory caching pattern:** Each proxy maintains a `{cache_key: data}` dict and a `{cache_key: expiry_datetime}` dict. Cache lifetime is controlled by `{PROXY_NAME}_PROXY_CACHE_LIFE` env var (minutes; 0 disables). All proxies support `?force=true` to bypass cache.
+**In-memory caching pattern:** Each proxy maintains a `{cache_key: data}` dict and a `{cache_key: expiry_datetime}` dict. Cache lifetime is controlled by `{PROXY_NAME}_PROXY_CACHE_LIFE` env var (minutes; 0 disables). All proxies support `?force=true` to bypass cache, limited per IP by `check_force_refresh` (`FORCE_REFRESH_PER_MINUTE`, default 2).
+
+**Security conventions:** proxy processes run as the unprivileged `app` user (supervisord `user=app`). Never log raw URLs or params — use `redact_url` / `redact_params` from `common.py`. Upstream error bodies are logged server-side only; clients get a generic message. Each app exposes `GET /health` (rate-limit exempt, no upstream call).
 
 ## NBA Proxy (`src/nbadata_proxy.py`)
 

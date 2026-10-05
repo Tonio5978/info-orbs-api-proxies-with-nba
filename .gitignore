@@ -1,0 +1,14 @@
+# Secrets
+.env
+.env.*
+!sample.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local caches
+*.db
+*.db-journal

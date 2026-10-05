@@ -4,7 +4,7 @@ from typing import Literal, Dict, Optional
 import json
 from fastapi import HTTPException, Request
 from pydantic import BaseModel
-from .common import setup_logger, create_app, fetch_data, handle_request
+from .common import setup_logger, create_app, fetch_data, handle_request, check_force_refresh
 
 logger = setup_logger("TEMPEST")
 app = create_app("tempest_proxy")
@@ -86,7 +86,7 @@ def get_cache_key(params: dict) -> str:
     return json.dumps(cache_params, sort_keys=True)
 
 async def proxy_endpoint(request: Request):
-    force_refresh = request.query_params.get("force", "").lower() == "true"
+    force_refresh = check_force_refresh(request, request.query_params.get("force", "").lower() == "true")
     
     if request.method == "GET":
         station_id = request.query_params.get("station_id")

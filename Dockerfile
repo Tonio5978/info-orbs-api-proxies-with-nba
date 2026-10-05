@@ -7,6 +7,9 @@ RUN apt-get update && \
 
 WORKDIR /app
 
+# Unprivileged user that runs the proxy processes (supervisord and the nginx master stay root)
+RUN useradd --system --no-create-home --shell /usr/sbin/nologin app
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt supervisor
 
@@ -23,6 +26,8 @@ VOLUME /app/mlb_logos
 # Add this before the COPY commands
 RUN mkdir -p /app/mlb_logos
 RUN mkdir -p /app/nfl_logos
+# Must exist at build time: the app user can't create it under /app at runtime
+RUN mkdir -p /app/nba_logos
 
 # Add this after your COPY commands (assuming you have a local mlb_logos directory)
 COPY mlb_logos/ /app/mlb_logos/
@@ -44,4 +49,5 @@ EXPOSE 80
 # Ensure no reload in production
 ENV RELOAD=0
 
-CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Give the app user write access to the timezone cache (also fixes volumes created by older root-only images)
+CMD ["sh", "-c", "chown -R app:app /var/cache/timezone_proxy/ || true; exec supervisord -c /etc/supervisor/conf.d/supervisord.conf"]

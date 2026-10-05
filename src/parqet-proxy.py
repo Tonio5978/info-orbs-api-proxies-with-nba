@@ -4,7 +4,7 @@ from typing import Literal, Dict, Optional
 import json
 from fastapi import HTTPException, Request
 from pydantic import BaseModel
-from .common import setup_logger, create_app, fetch_data, handle_request
+from .common import setup_logger, create_app, fetch_data, handle_request, check_force_refresh
 
 logger = setup_logger("PARQET")
 app = create_app("parqet_proxy")
@@ -89,7 +89,7 @@ def get_cache_key(request_data: dict) -> str:
     return json.dumps(request_data.dict(), sort_keys=True)
 
 async def proxy_endpoint(request: Request):
-    force_refresh = request.query_params.get("force", "").lower() == "true"
+    force_refresh = check_force_refresh(request, request.query_params.get("force", "").lower() == "true")
     
     if request.method == "GET":
         id = request.query_params.get("id")
