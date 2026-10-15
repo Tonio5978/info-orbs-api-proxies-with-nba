@@ -40,6 +40,7 @@ Each proxy is an independent FastAPI app (`src/<name>_proxy.py`) running on its 
 | mlbdata-proxy | 8087 | `/mlbdata/` | ESPN API, serves logos at `/mlbdata/logo/` |
 | nfldata-proxy | 8088 | `/nfldata/` | ESPN API, serves logos at `/nfldata/logo/` |
 | nbadata-proxy | 8089 | `/nbadata/` | ESPN API, serves logos at `/nbadata/logo/` |
+| soccer-proxy | 8090 | `/soccer/` | ESPN soccer, background scheduler, see `README-SOCCER.md` |
 
 **Shared infrastructure (`src/common.py`):**
 - `setup_logger(app_name)` — configures uvicorn logger with app-specific prefix
@@ -63,11 +64,29 @@ The NBA proxy aggregates ESPN API data into a single response per team containin
 - `nextGame` — upcoming scheduled game
 - `liveGame` — live game data from scoreboard (only present if team is currently playing)
 
-Two more routes summarize whole days from the ESPN scoreboard, as `{date, count, games: [{gameId, status (pre/in/post), startTime, home/away: {abbreviation, score}}]}`: `GET /nbadata/scores` (current ESPN scoreboard day, which rolls over around midday ET; cached with the scoreboard shared by `/proxy`) and `GET /nbadata/upcoming` (the following day, `NBADATA_PROXY_UPCOMING_CACHE_LIFE`). Both accept `?team=` and `?tz=` (start times). Each route registered with `handle_request` gets its own rate-limit counter.
+Two more routes summarize whole days from the ESPN scoreboard, as `{date, count, games: [{gameId, status (pre/in/post), startTime, home/away: {abbreviation, score}}]}` — live games (`in`) add `period`, `clock` (time remaining in the period) and `detail` (ESPN shortDetail, e.g. Halftime); other games add `color` (`#rrggbb`) to each team: `GET /nbadata/scores` (current ESPN scoreboard day, which rolls over around midday ET; cached with the scoreboard shared by `/proxy`) and `GET /nbadata/upcoming` (the following day, `NBADATA_PROXY_UPCOMING_CACHE_LIFE`). Both accept `?team=` and `?tz=` (start times). Each route registered with `handle_request` gets its own rate-limit counter.
 
 Team lookup uses `src/nba_teams.json` (loaded at startup), supporting team ID, full name, or any alias. Debug endpoint: `GET /nbadata/debug/teams`.
 
 Season detection: NBA season spans Oct–Jun; `get_current_season()` returns the end-year (e.g., `"2025"` for the 2024–25 season).
+
+## Soccer Proxy (`src/soccer_proxy.py`)
+
+Reproduces the epl-vps.duckdns.org API for Node-RED/AWTRIX. Unlike the other proxies, requests never call ESPN:
+a background scheduler (`src/soccer_scheduler.py`, started via `create_app(background=...)`) fills in-memory
+payloads, and routes only serve them (with `ETag`/304, `Cache-Control: public, max-age=10`, CORS `*`; 503 until
+the first load).
+
+- Competitions come from `config/competitions.json` (`key`, `espnCode`, `country`); each key gets
+  `/{key}UpcomingMatches` and `/{key}Teams`. Team aliases/country overrides: `config/aliases.json`, keyed by ESPN team id.
+- ESPN rejects `dates=YYYYMMDD-YYYYMMDD` ranges (HTTP 400): the J-1..J+14 window is fetched per month
+  (`dates=YYYYMM`, widened by a day for US month boundaries) and filtered locally; during live matches (or
+  10 min before kickoff) only the affected days are refetched every 20 s.
+- One ESPN request at a time with a pause; failures keep the last payload and back off (30 s doubling, max 30 min).
+- Projection in `src/soccer_espn.py` (pure functions) must keep ESPN field names/nesting exactly; no
+  `competitionKey` in matches; `period` only once a match has started; colors without `#`.
+- Team logos: `scripts/download_soccer_logos.py` saves `soccer_logos/<ESPN team id>.png` (+ `index.json`), served by nginx at `/soccer/logo/`; images are git-ignored.
+- Tests: `python -m unittest discover -s tests -t .` (fixtures in `tests/fixtures/soccer/`, real ESPN responses).
 
 ## Environment Variables
 

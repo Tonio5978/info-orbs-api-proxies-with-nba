@@ -50,6 +50,9 @@ This repository contains API proxies for the [InfoOrbs project](https://github.c
 >
 > Each proxy also exposes a local health check at `/<proxy>/health` (e.g. `http://localhost/mlbdata/health`).
 
+- **Soccer Proxy (ESPN football, Node-RED/AWTRIX):**
+  Example: `http://localhost/soccer/ligue1UpcomingMatches` — see [README-SOCCER.md](README-SOCCER.md)
+
 ## Installation
 
 **Note:** Consider aliasing `docker-compose` to `dc` for convenience:

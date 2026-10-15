@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt supervisor
 
 # Copy app files
 COPY src/ ./src/
+COPY config/ ./config/
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY scripts/ /app/scripts/
@@ -27,7 +28,7 @@ VOLUME /app/mlb_logos
 RUN mkdir -p /app/mlb_logos
 RUN mkdir -p /app/nfl_logos
 # Must exist at build time: the app user can't create it under /app at runtime
-RUN mkdir -p /app/nba_logos
+RUN mkdir -p /app/nba_logos /app/soccer_logos
 
 # Add this after your COPY commands (assuming you have a local mlb_logos directory)
 COPY mlb_logos/ /app/mlb_logos/

@@ -9,6 +9,8 @@ services:
       - ./mlb_logos:/app/mlb_logos
       - ./nfl_logos:/app/nfl_logos
       - ./nba_logos:/app/nba_logos
+      - ./soccer_logos:/app/soccer_logos  # Filled by scripts/download_soccer_logos.py
+      - ./config:/app/config:ro  # Soccer competitions and aliases, editable without rebuilding
     restart: unless-stopped
     logging:
       options:

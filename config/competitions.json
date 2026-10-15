@@ -1,0 +1,12 @@
+[
+  {"key": "ligue1", "espnCode": "fra.1", "name": "Ligue 1", "country": "france"},
+  {"key": "ligue2", "espnCode": "fra.2", "name": "Ligue 2", "country": "france"},
+  {"key": "coupeDeFrance", "espnCode": "fra.coupe_de_france", "name": "Coupe de France", "country": "france"},
+  {"key": "cl", "espnCode": "uefa.champions", "name": "UEFA Champions League", "country": null},
+  {"key": "el", "espnCode": "uefa.europa", "name": "UEFA Europa League", "country": null},
+  {"key": "ecl", "espnCode": "uefa.europa.conf", "name": "UEFA Conference League", "country": null},
+  {"key": "epl", "espnCode": "eng.1", "name": "Premier League", "country": "england"},
+  {"key": "laliga", "espnCode": "esp.1", "name": "LaLiga", "country": "spain"},
+  {"key": "serieA", "espnCode": "ita.1", "name": "Serie A", "country": "italy"},
+  {"key": "bundesliga", "espnCode": "ger.1", "name": "Bundesliga", "country": "germany"}
+]

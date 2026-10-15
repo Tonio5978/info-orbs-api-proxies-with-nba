@@ -285,20 +285,33 @@ async def proxy_endpoint(request: Request):
 
 
 def format_scoreboard_game(event: dict, tz) -> dict:
-    """Minimal game summary: ESPN status ('pre', 'in', 'post'), start time and both teams' scores."""
+    """Game summary: ESPN status ('pre', 'in', 'post'), start time and both teams' scores.
+
+    Live games ('in') add the current period and the clock (time remaining in the period);
+    other games add each team's color instead.
+    """
     competitors = (event.get("competitions") or [{}])[0].get("competitors", [])
     side = {c.get("homeAway"): c for c in competitors}
+    status = event.get("status") or (event.get("competitions") or [{}])[0].get("status") or {}
+    state = status.get("type", {}).get("state", "N/A")
+    is_live = state == "in"
 
     def team(c: dict) -> dict:
-        return {"abbreviation": c.get("team", {}).get("abbreviation", "N/A"), "score": get_score_value(c)}
+        info = c.get("team", {})
+        summary = {"abbreviation": info.get("abbreviation", "N/A"), "score": get_score_value(c)}
+        if not is_live:
+            summary["color"] = f"#{info['color']}" if info.get("color") else None  # ESPN gives hex without '#'
+        return summary
 
-    return {
-        "gameId": event.get("id", "N/A"),
-        "status": get_status_type(event).get("state", "N/A"),
-        "startTime": format_game_time(event.get("date", ""), tz),
-        "home": team(side.get("home", {})),
-        "away": team(side.get("away", {})),
-    }
+    game = {"gameId": event.get("id", "N/A"), "status": state}
+    if is_live:
+        game["period"] = format_period(status.get("period", 0))
+        game["clock"] = status.get("displayClock", "")
+        game["detail"] = status.get("type", {}).get("shortDetail", "")  # e.g. 'Halftime', 'End of 3rd Quarter'
+    game["startTime"] = format_game_time(event.get("date", ""), tz)
+    game["home"] = team(side.get("home", {}))
+    game["away"] = team(side.get("away", {}))
+    return game
 
 
 def build_scoreboard_response(scoreboard: dict, request: Request, cached: bool) -> dict:

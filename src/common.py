@@ -236,11 +236,15 @@ def create_app(
     default_requests_per_minute: int = 5,
     banner_title: Optional[str] = None,
     banner_lines: Optional[Callable[[], List[str]]] = None,
+    background: Optional[Callable[[], Awaitable[None]]] = None,
+    health_details: Optional[Callable[[], dict]] = None,
 ) -> FastAPI:
     """Create a FastAPI app with rate limiting, a shared HTTP client and a /health endpoint.
 
     The per-IP rate limit comes from {APP_NAME}_REQUESTS_PER_MINUTE (e.g. NBADATA_PROXY_REQUESTS_PER_MINUTE)
     and applies to every route except /health; it's stored in app.state.rate_limit for handle_request.
+    `background` is a coroutine started with the app (after the shared HTTP client) and cancelled on shutdown;
+    `health_details()` adds fields to the /health response.
     """
     rate_limit = os.getenv(f"{app_name.upper()}_REQUESTS_PER_MINUTE", str(default_requests_per_minute)) + "/minute"
 
@@ -257,9 +261,16 @@ def create_app(
                 logger.info(f"→ {line}")
             logger.info("=" * 50 + "\n")
         _http_client = httpx.AsyncClient()
+        task = asyncio.create_task(background()) if background else None
         try:
             yield
         finally:
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
             await _http_client.aclose()
             _http_client = None
 
@@ -296,7 +307,7 @@ def create_app(
     @limiter.exempt
     async def health():
         """Liveness check that doesn't call any upstream API."""
-        return {"status": "ok", "service": app_name}
+        return {"status": "ok", "service": app_name, **(health_details() if health_details else {})}
 
     return app
 

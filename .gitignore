@@ -9,6 +9,10 @@ __pycache__/
 .venv/
 venv/
 
+# Downloaded logos (scripts/download_soccer_logos.py)
+soccer_logos/*.png
+soccer_logos/index.json
+
 # Local caches
 *.db
 *.db-journal
