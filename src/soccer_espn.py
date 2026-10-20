@@ -213,8 +213,7 @@ def goals_and_cards(event: dict) -> tuple:
 def format_day_game(event: dict, competition_key: Optional[str], tz: ZoneInfo) -> dict:
     """Match summary in the /nbadata/scores style: status, live period/clock, teams, goals and cards.
 
-    Live matches ('in') get period, clock and detail ('HT' at half time); other matches get
-    each team's color ('#rrggbb').
+    Every team has its color ('#rrggbb'); live matches ('in') also get period, clock and detail ('HT' at half time).
     """
     status = event.get("status") or {}
     state = status.get("type", {}).get("state")
@@ -223,10 +222,11 @@ def format_day_game(event: dict, competition_key: Optional[str], tz: ZoneInfo) -
 
     def team(c: dict) -> dict:
         info = c.get("team", {})
-        summary = {"abbreviation": info.get("abbreviation"), "score": _score(c.get("score"))}
-        if state != "in":
-            summary["color"] = f"#{_strip_hash(info['color'])}" if info.get("color") else None
-        return summary
+        return {
+            "abbreviation": info.get("abbreviation"),
+            "score": _score(c.get("score")),
+            "color": f"#{_strip_hash(info['color'])}" if info.get("color") else None,
+        }
 
     game = {"gameId": event.get("id"), "status": state, "competition": competition_key,
             "competitionName": competition.get("altGameNote")}
@@ -266,6 +266,55 @@ def build_day_payload(day: str, events: Iterable[dict], league_keys: Dict[str, s
             continue
         games.append(format_day_game(event, key, tz))
     return {"date": day, "count": len(games), "games": games}
+
+
+# ── Standings (/…Standings) ───────────────────────────────────────────────────
+
+def _int(value):
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def build_standings_payload(data: dict, competition_key: str, team_colors: Dict[str, str],
+                            team: Optional[str] = None, aliases_config: Optional[Dict[str, dict]] = None) -> dict:
+    """League table(s) of an ESPN standings response, in ESPN order (already sorted by rank).
+
+    One group for a league, several for a group stage, none for a knockout cup (Coupe de France).
+    ESPN standings have no team colors: they come from the competition's /teams data (`team_colors`).
+    """
+    groups = []
+    for child in data.get("children", []):
+        rows = []
+        for entry in child.get("standings", {}).get("entries", []):
+            info = entry.get("team", {})
+            if team and not team_matches({"team": info}, team, aliases_config or {}):
+                continue
+            stats = {s.get("name"): s for s in entry.get("stats", [])}
+            value = lambda name: _int(stats.get(name, {}).get("value"))
+            note = entry.get("note")
+            rows.append({
+                "rank": value("rank"),
+                "teamId": info.get("id"),
+                "abbreviation": info.get("abbreviation"),
+                "name": info.get("displayName"),
+                "color": team_colors.get(str(info.get("id"))),
+                "played": value("gamesPlayed"),
+                "wins": value("wins"),
+                "draws": value("ties"),
+                "losses": value("losses"),
+                "goalsFor": value("pointsFor"),
+                "goalsAgainst": value("pointsAgainst"),
+                "goalDifference": value("pointDifferential"),
+                "points": value("points"),
+                # Qualification / relegation zone, e.g. {"description": "Champions League", "color": "#81D6AC"}
+                "zone": {"description": note.get("description"), "color": note.get("color")} if note else None,
+            })
+        groups.append({"name": (child.get("name") or "").strip(), "teams": rows})
+    season = data.get("season") or {}
+    return {"competition": competition_key, "name": data.get("name"), "season": season.get("displayName") or season.get("year"),
+            "groups": groups}
 
 
 # ── Teams projection (/…Teams) ────────────────────────────────────────────────

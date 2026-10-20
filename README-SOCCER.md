@@ -12,6 +12,7 @@ Pour chaque compétition de `config/competitions.json` (clé `{cle}`) :
 |---|---|
 | `GET /soccer/{cle}UpcomingMatches` | Matchs de J-1 à J+14 (champs du scoreboard ESPN, réduits) |
 | `GET /soccer/{cle}Teams` | Équipes de la compétition, avec `aliases`, `competitionKey`, `country` |
+| `GET /soccer/{cle}Standings` | Classement de la compétition (`?team=` pour une équipe) |
 | `GET /soccer/scores` | Tous les matchs de la journée ESPN en cours, toutes compétitions configurées (terminés, en direct, à venir) |
 | `GET /soccer/upcoming` | Les matchs du lendemain |
 | `GET /soccer/health` | État du cache par compétition et des deux journées |
@@ -91,7 +92,7 @@ curl -s "http://localhost/soccer/scores?tz=UTC"              # fuseau de startTi
 {"date": "2026-10-20", "count": 9, "games": [
   {"gameId": "401915399", "status": "in", "competition": "cl", "competitionName": "UEFA Champions League, League Phase",
    "period": 1, "clock": "45'+1'", "detail": "45'+1'", "startTime": "21:00",
-   "home": {"abbreviation": "PSG", "score": "1"}, "away": {"abbreviation": "BAR", "score": "0"},
+   "home": {"abbreviation": "PSG", "score": "1", "color": "#011F68"}, "away": {"abbreviation": "BAR", "score": "0", "color": "#a50044"},
    "goals": [{"minute": "38'", "team": "PSG", "player": "D. Doué", "type": "Goal", "penalty": false, "ownGoal": false}],
    "cards": [{"minute": "17'", "team": "BAR", "player": "J. Cancelo", "card": "yellow"}]},
   {"gameId": "401915403", "status": "post", "competition": "cl", "competitionName": "UEFA Champions League, League Phase",
@@ -101,8 +102,8 @@ curl -s "http://localhost/soccer/scores?tz=UTC"              # fuseau de startTi
 ```
 - `status` : `pre`, `in`, `post` (ESPN). `competition` : clé de `competitions.json`, `null` pour les autres compétitions
   (avec `?all=true`) ; `competitionName` : libellé ESPN.
-- Match en direct : `period` (1 ou 2, puis prolongations), `clock` (`67'`, `45'+2'`), `detail` (`HT` à la mi-temps).
-  Autres matchs : couleur de chaque équipe (`#rrggbb`).
+- Chaque équipe a sa couleur (`color`, `#rrggbb`), quel que soit le statut du match.
+- Match en direct : en plus, `period` (1 ou 2, puis prolongations), `clock` (`67'`, `45'+2'`), `detail` (`HT` à la mi-temps).
 - `startTime` : heure de coup d'envoi en 24 h, heure de Paris par défaut.
 - `goals` : minute, équipe, buteur, type ESPN (`Goal`, `Goal - Header`, `Penalty - Scored`, `Own Goal`…), `penalty`,
   `ownGoal`. Un but contre son camp compte pour l'équipe qui en bénéficie (comme le score) ; `player` est alors le
@@ -113,6 +114,25 @@ curl -s "http://localhost/soccer/scores?tz=UTC"              # fuseau de startTi
 - Rafraîchissement : `/scores` toutes les 20 s quand un match d'une compétition configurée est en cours ou va commencer,
   sinon toutes les 5 min ; `/upcoming` toutes les 30 min. Les matchs des autres compétitions (`?all=true`) peuvent donc
   avoir jusqu'à 5 min de retard quand aucune de vos compétitions ne joue.
+
+## Classements (`/soccer/{cle}Standings`)
+
+```bash
+curl -s http://localhost/soccer/ligue1Standings
+curl -s "http://localhost/soccer/eplStandings?team=arsenal"
+```
+```json
+{"competition": "ligue1", "name": "French Ligue 1", "season": "2026-27 French Ligue 1", "groups": [{"name": "French Ligue 1 2026-27", "teams": [
+  {"rank": 2, "teamId": "160", "abbreviation": "PSG", "name": "Paris Saint-Germain", "color": "#011F68", "played": 7,
+   "wins": 4, "draws": 2, "losses": 1, "goalsFor": 14, "goalsAgainst": 9, "goalDifference": 5, "points": 14,
+   "zone": {"description": "Champions League", "color": "#81D6AC"}}]}]}
+```
+- Source : `site.api.espn.com/apis/v2/sports/soccer/{code}/standings`, rechargé en tâche de fond toutes les 30 min,
+  toutes les 5 min quand un match de la compétition est en cours (`SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES`).
+- Ordre d'ESPN (par `rank`). `zone` : zone de qualification ou de relégation avec sa couleur ESPN (`null` sinon).
+- `color` : couleur de l'équipe, reprise de `/…Teams` (le classement ESPN n'en a pas).
+- `groups` : un groupe pour un championnat, la phase de ligue pour les coupes européennes, **aucun pour la Coupe de
+  France** (coupe à élimination directe, ESPN ne publie pas de classement).
 
 ## Configuration
 
@@ -149,6 +169,7 @@ Le dossier `config/` est monté en lecture seule dans le conteneur (`docker-comp
 | `SOCCER_PROXY_RETRY_BASE_SECONDS` | `30` | Premier délai de réessai après une erreur (doublé à chaque échec, max 30 min) |
 | `SOCCER_PROXY_SCORES_REFRESH_MINUTES` | `5` | `/scores` quand aucune compétition configurée ne joue |
 | `SOCCER_PROXY_UPCOMING_REFRESH_MINUTES` | `30` | `/upcoming` |
+| `SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES` | `5` | Classements pendant les matchs de la compétition (sinon 30 min) |
 | `SOCCER_PROXY_REQUESTS_PER_MINUTE` | `60` | Limite par IP et par route |
 | `SOCCER_PROXY_CONFIG_DIR` | `/app/config` | Dossier de `competitions.json` et `aliases.json` |
 

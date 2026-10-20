@@ -1,28 +1,39 @@
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Tuple
-from zoneinfo import ZoneInfo
+from typing import Optional
 from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from .common import (setup_logger, create_app, fetch_data, check_force_refresh, is_force_requested, handle_request,
                      TTLCache, make_cache_key, get_or_fetch, gather_or_raise, proxy_info)
-from .sports_common import (DEFAULT_TZ, load_teams, build_team_lookup, resolve_team, parse_colors, format_ordinal, get_display_tz,
+from .sports_common import (load_teams, build_team_lookup, resolve_team, parse_colors, format_ordinal, get_display_tz,
                             parse_utc_date, format_game_date, get_day_of_week, format_game_time, get_status_type,
                             find_last_game, find_next_game, split_competitors, get_score_value, get_primary_logo,
                             get_broadcast_name)
+from .nba_scheduler import NbaScoreboardScheduler, needs_live_refresh
 
 logger = setup_logger("NBADATA")
 BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/"
 
-# Cache configuration
+# Team data cache of /proxy (team details, standings, schedule); the live game is not cached here
 CACHE = TTLCache.from_env_minutes("NBADATA_PROXY_CACHE_LIFE")
-# Shorter lifetime while the team is playing (or about to), so live scores stay fresh
+# Shorter lifetime while the team is playing, so lastGame/standings update soon after the final buzzer
 LIVE_CACHE_SECONDS = int(os.getenv("NBADATA_PROXY_LIVE_CACHE_SECONDS", "60"))
-# The scoreboard is the same for every team: fetch it once and share it
-SCOREBOARD_CACHE = TTLCache(int(os.getenv("NBADATA_PROXY_SCOREBOARD_CACHE_SECONDS", "30")))
-# Next day's games (/upcoming) change rarely
-UPCOMING_CACHE = TTLCache.from_env_minutes("NBADATA_PROXY_UPCOMING_CACHE_LIFE", "15")
+
+
+async def fetch_espn(url: str) -> dict:
+    return await fetch_data(url, logger, app_name="nbadata")
+
+
+# Background refresh of the scoreboards (/scores, /upcoming, live games): 10 s during games, 30 min otherwise
+scheduler = NbaScoreboardScheduler(
+    fetch_espn, logger,
+    live_seconds=int(os.getenv("NBADATA_PROXY_LIVE_REFRESH_SECONDS", "10")),
+    idle_seconds=int(os.getenv("NBADATA_PROXY_IDLE_REFRESH_MINUTES", "30")) * 60,
+    prematch_minutes=int(os.getenv("NBADATA_PROXY_PREMATCH_MINUTES", "10")),
+    standings_live_seconds=int(os.getenv("NBADATA_PROXY_STANDINGS_LIVE_REFRESH_MINUTES", "5")) * 60,
+)
 
 # Load team data
 TEAMS_DATA = load_teams(Path(__file__).parent / "nba_teams.json", logger)
@@ -31,13 +42,14 @@ TEAM_LOOKUP = build_team_lookup(TEAMS_DATA)
 
 app = create_app("nbadata_proxy", default_requests_per_minute=15, banner_title="NBA Data Service Configuration", banner_lines=lambda: [
     f"Teams loaded: {len(TEAMS_DATA)}",
-    f"Cache lifetime: {CACHE.ttl_seconds // 60} minutes ({'enabled' if CACHE.enabled else 'disabled'}), "
-    f"{LIVE_CACHE_SECONDS}s during live games",
-    f"Scoreboard cache (/scores): {SCOREBOARD_CACHE.ttl_seconds}s, /upcoming cache: {UPCOMING_CACHE.ttl_seconds // 60} minutes",
-])
+    f"Team data cache: {CACHE.ttl_seconds // 60} minutes ({'enabled' if CACHE.enabled else 'disabled'}), "
+    f"{LIVE_CACHE_SECONDS}s while the team is playing",
+    f"Scoreboards: every {scheduler.live_seconds}s during games (from {scheduler.prematch_minutes} min before tip-off), "
+    f"{scheduler.idle_seconds // 60} min otherwise",
+], background=scheduler.run, health_details=scheduler.health)
 
 LOGO_DIR = Path("/app/nba_logos")
-app.mount("/nbadata/logo", StaticFiles(directory=LOGO_DIR), name="nba_logos")
+app.mount("/nbadata/logo", StaticFiles(directory=LOGO_DIR, check_dir=False), name="nba_logos")
 
 
 def get_current_season() -> str:
@@ -91,33 +103,17 @@ async def get_schedule(team_id: str, season: str) -> list:
     return schedule_data["events"]
 
 
-async def fetch_scoreboard(date: Optional[str] = None) -> dict:
-    """ESPN scoreboard as {'date': 'YYYY-MM-DD', 'events': [...]}.
-
-    Without a date, ESPN returns its current scoreboard day, which only rolls over
-    around midday US Eastern time (so in the morning it still shows last night's games).
-    """
-    query = f"dates={date.replace('-', '')}&limit=25" if date else "limit=25"  # An NBA day has at most 15 games
-    scoreboard = await fetch_data(f"{BASE_URL}scoreboard?{query}", logger, app_name="nbadata") or {}
-    day = (scoreboard.get("day") or {}).get("date") or date
-    if not day:
-        day = datetime.now(ZoneInfo(DEFAULT_TZ)).strftime("%Y-%m-%d")
-    return {"date": day, "events": scoreboard.get("events", [])}
+def get_scoreboard() -> list:
+    """Current ESPN day's events, kept up to date by the scheduler (empty until the first load)."""
+    return scheduler.boards["scores"].events or []
 
 
-async def get_current_scoreboard(force: bool = False) -> Tuple[dict, bool]:
-    """Current ESPN scoreboard day, shared by /proxy (live game) and /scores."""
-    return await get_or_fetch(SCOREBOARD_CACHE, "scoreboard", fetch_scoreboard, logger, force=force)
-
-
-async def get_scoreboard(force: bool = False) -> list:
-    """Today's NBA scoreboard events to detect live games. Never fails the request."""
-    try:
-        scoreboard, _ = await get_current_scoreboard(force)
-        return scoreboard["events"]
-    except HTTPException:
-        logger.warning("Scoreboard unavailable, live game data skipped")
-        return []
+def team_is_playing(team_id: str) -> bool:
+    now = datetime.now(timezone.utc)
+    return any(needs_live_refresh(e, now, scheduler.prematch_minutes)
+               and any(c.get("team", {}).get("id") == team_id
+                       for c in (e.get("competitions") or [{}])[0].get("competitors", []))
+               for e in get_scoreboard())
 
 
 def build_team(team_id: str, team_data: dict) -> dict:
@@ -251,9 +247,7 @@ async def proxy_endpoint(request: Request):
     async def build() -> dict:
         nonlocal next_game_start
         logger.info(f"Fetching live data for team {team_id}{' (forced refresh)' if force_refresh else ''}")
-        team_data, games, scoreboard_events = await gather_or_raise(
-            get_team_details(team_id), get_schedule(team_id, season), get_scoreboard(force_refresh)
-        )
+        team_data, games = await gather_or_raise(get_team_details(team_id), get_schedule(team_id, season))
         now = datetime.now(timezone.utc)
         next_game = find_next_game(games, now)
         if next_game:
@@ -265,11 +259,10 @@ async def proxy_endpoint(request: Request):
             "standings": build_standings(team_id, team_data),
             "lastGame": build_last_game(find_last_game(games, now), team_id, tz),
             "nextGame": build_next_game(next_game, team_id, tz),
-            "liveGame": build_live_game(scoreboard_events, team_id)
         }
 
     def ttl_for(result: dict):
-        if result.get("liveGame"):
+        if team_is_playing(team_id):
             return LIVE_CACHE_SECONDS
         if next_game_start:
             # Expire when the next game tips off, so the live game shows up promptly
@@ -281,14 +274,14 @@ async def proxy_endpoint(request: Request):
     result, cached = await get_or_fetch(CACHE, cache_key, build, logger, force=force_refresh, ttl_for=ttl_for)
     if cached:
         logger.info(f"Returning cached data for team {team_id}")
-    return transform_data(result, cached=cached)
+    # Live game from the scoreboard refreshed in the background (every few seconds during games)
+    return transform_data({**result, "liveGame": build_live_game(get_scoreboard(), team_id)}, cached=cached)
 
 
 def format_scoreboard_game(event: dict, tz) -> dict:
-    """Game summary: ESPN status ('pre', 'in', 'post'), start time and both teams' scores.
+    """Game summary: ESPN status ('pre', 'in', 'post'), start time and both teams' scores and colors.
 
-    Live games ('in') add the current period and the clock (time remaining in the period);
-    other games add each team's color instead.
+    Live games ('in') add the current period, the clock (time remaining in the period) and the last play.
     """
     competitors = (event.get("competitions") or [{}])[0].get("competitors", [])
     side = {c.get("homeAway"): c for c in competitors}
@@ -298,10 +291,11 @@ def format_scoreboard_game(event: dict, tz) -> dict:
 
     def team(c: dict) -> dict:
         info = c.get("team", {})
-        summary = {"abbreviation": info.get("abbreviation", "N/A"), "score": get_score_value(c)}
-        if not is_live:
-            summary["color"] = f"#{info['color']}" if info.get("color") else None  # ESPN gives hex without '#'
-        return summary
+        return {
+            "abbreviation": info.get("abbreviation", "N/A"),
+            "score": get_score_value(c),
+            "color": f"#{info['color']}" if info.get("color") else None,  # ESPN gives hex without '#'
+        }
 
     game = {"gameId": event.get("id", "N/A"), "status": state}
     if is_live:
@@ -316,10 +310,14 @@ def format_scoreboard_game(event: dict, tz) -> dict:
     return game
 
 
-def build_scoreboard_response(scoreboard: dict, request: Request, cached: bool) -> dict:
+def build_scoreboard_response(board, request: Request):
     """Games of a scoreboard day, optionally filtered with ?team=LAL, start times in ?tz= (default ET)"""
+    if board.events is None:
+        # Not loaded yet since startup: never serve an empty day in place of real data
+        return JSONResponse({"error": "warming_up", "message": f"{board.name} scoreboard not loaded yet, retry shortly"},
+                            status_code=503, headers={"Retry-After": "5"})
     tz = get_display_tz(request)
-    events = sorted(scoreboard["events"], key=lambda e: (e.get("date", ""), e.get("id", "")))
+    events = sorted(board.events, key=lambda e: (e.get("date", ""), e.get("id", "")))
     team_name = request.query_params.get("team")
     if team_name:
         team_id = resolve_team(TEAM_LOOKUP, team_name)
@@ -327,25 +325,72 @@ def build_scoreboard_response(scoreboard: dict, request: Request, cached: bool) 
                   if any(c.get("team", {}).get("id") == team_id
                          for c in (e.get("competitions") or [{}])[0].get("competitors", []))]
     games = [format_scoreboard_game(e, tz) for e in events]
-    return {"date": scoreboard["date"], "count": len(games), "games": games, "proxy-info": proxy_info(cached)}
+    return {"date": board.date, "count": len(games), "games": games, "proxy-info": proxy_info(True)}
 
 
 async def scores_endpoint(request: Request):
-    """All games of the current ESPN scoreboard day: finished, live and upcoming."""
-    force_refresh = check_force_refresh(request, is_force_requested(request))
-    scoreboard, cached = await get_current_scoreboard(force_refresh)
-    return build_scoreboard_response(scoreboard, request, cached)
+    """All games of the current ESPN scoreboard day: finished, live and upcoming (no ESPN call, see nba_scheduler)."""
+    return build_scoreboard_response(scheduler.boards["scores"], request)
 
 
 async def upcoming_endpoint(request: Request):
     """Games of the day after the current ESPN scoreboard day."""
-    force_refresh = check_force_refresh(request, is_force_requested(request))
-    current, _ = await get_current_scoreboard()
-    next_day = (datetime.strptime(current["date"], "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
-    scoreboard, cached = await get_or_fetch(
-        UPCOMING_CACHE, next_day, lambda: fetch_scoreboard(next_day), logger, force=force_refresh
-    )
-    return build_scoreboard_response(scoreboard, request, cached)
+    return build_scoreboard_response(scheduler.boards["upcoming"], request)
+
+
+def standing_stats(entry: dict) -> dict:
+    return {s.get("name"): s for s in entry.get("stats", [])}
+
+
+def build_standings_response(data: dict, conference: Optional[str] = None, team_id: Optional[str] = None) -> dict:
+    """Conference standings from ESPN, teams sorted by playoff seed (ESPN doesn't sort them)."""
+    conferences = []
+    for child in data.get("children", []):
+        if conference and conference.lower() not in {str(child.get("abbreviation", "")).lower(), str(child.get("name", "")).lower()}:
+            continue
+        teams = []
+        for entry in child.get("standings", {}).get("entries", []):
+            info = entry.get("team", {})
+            stats = standing_stats(entry)
+            value = lambda name: stats.get(name, {}).get("value")
+            text = lambda name: stats.get(name, {}).get("displayValue")
+            local = TEAMS_BY_ID.get(str(info.get("id")), {})
+            colors = parse_colors(local.get("colors", ""))
+            teams.append({
+                "rank": int(value("playoffSeed") or 0),
+                "teamId": info.get("id"),
+                "abbreviation": info.get("abbreviation"),
+                "name": info.get("displayName"),
+                "color": colors[0]["code"] if colors else None,  # ESPN standings have no colors: nba_teams.json
+                "wins": int(value("wins") or 0),
+                "losses": int(value("losses") or 0),
+                "winPercent": text("winPercent"),
+                "gamesBehind": text("gamesBehind"),
+                "streak": text("streak"),
+                "home": text("Home"),
+                "road": text("Road"),
+                "vsConference": text("vs. Conf."),
+                "pointsFor": text("avgPointsFor"),
+                "pointsAgainst": text("avgPointsAgainst"),
+            })
+        # Seed first; ties (before the season starts every seed is 1) by win percentage, then name
+        teams.sort(key=lambda t: (t["rank"] or 99, -(t["wins"] / max(t["wins"] + t["losses"], 1)), t["name"] or ""))
+        if team_id:
+            teams = [t for t in teams if str(t["teamId"]) == team_id]
+        conferences.append({"name": child.get("name"), "abbreviation": child.get("abbreviation"), "teams": teams})
+    season = (data.get("season") or {}).get("year")
+    return {"season": str(season) if season else None, "conferences": conferences, "proxy-info": proxy_info(True)}
+
+
+async def standings_endpoint(request: Request):
+    """Conference standings, refreshed in the background; ?conference=east|west, ?team=LAL"""
+    board = scheduler.boards["standings"]
+    if board.data is None:
+        return JSONResponse({"error": "warming_up", "message": "standings not loaded yet, retry shortly"},
+                            status_code=503, headers={"Retry-After": "5"})
+    team = request.query_params.get("team")
+    return build_standings_response(board.data, request.query_params.get("conference"),
+                                    resolve_team(TEAM_LOOKUP, team) if team else None)
 
 
 @app.get("/debug/teams")
@@ -367,3 +412,4 @@ async def debug_teams():
 handle_request(app, logger, proxy_endpoint, methods=("GET",))
 handle_request(app, logger, scores_endpoint, methods=("GET",), path="/scores")
 handle_request(app, logger, upcoming_endpoint, methods=("GET",), path="/upcoming")
+handle_request(app, logger, standings_endpoint, methods=("GET",), path="/standings")

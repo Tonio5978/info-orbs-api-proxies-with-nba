@@ -115,9 +115,11 @@ GET http://localhost/nbadata/proxy?teamName=LAL&tz=Europe/Paris   # dates/heures
 |---|---|---|
 | `NBADATA_PROXY_CACHE_LIFE` | `5` | Durée du cache en minutes |
 | `NBADATA_PROXY_REQUESTS_PER_MINUTE` | `15` | Limite rate limiting (par IP et par route) |
-| `NBADATA_PROXY_LIVE_CACHE_SECONDS` | `60` | Durée du cache de `/proxy` pendant un match en direct |
-| `NBADATA_PROXY_SCOREBOARD_CACHE_SECONDS` | `30` | Cache du scoreboard (`/scores` et détection du live) |
-| `NBADATA_PROXY_UPCOMING_CACHE_LIFE` | `15` | Cache de `/upcoming` en minutes |
+| `NBADATA_PROXY_LIVE_REFRESH_SECONDS` | `10` | Rafraîchissement du scoreboard pendant les matchs (`/scores`, `liveGame`) |
+| `NBADATA_PROXY_IDLE_REFRESH_MINUTES` | `30` | Rafraîchissement hors matchs, et de `/upcoming` |
+| `NBADATA_PROXY_PREMATCH_MINUTES` | `10` | Passage au rafraîchissement rapide avant le coup d'envoi |
+| `NBADATA_PROXY_STANDINGS_LIVE_REFRESH_MINUTES` | `5` | Rafraîchissement du classement pendant les matchs (sinon 30 min) |
+| `NBADATA_PROXY_LIVE_CACHE_SECONDS` | `60` | Cache des données d'équipe de `/proxy` (bilan, dernier match) pendant que l'équipe joue |
 
 ---
 
@@ -163,7 +165,7 @@ donc le matin en Europe `/scores` montre encore les résultats de la nuit. `/upc
      "home": {"abbreviation": "DEN", "score": "97", "color": "#0e2240"}, "away": {"abbreviation": "UTAH", "score": "109", "color": "#4e008e"}},
     {"gameId": "401918010", "status": "in", "period": "Q3", "clock": "5:12", "detail": "5:12 - 3rd Quarter",
      "lastPlay": "Jayson Tatum defensive rebound", "startTime": "7:00 PM",
-     "home": {"abbreviation": "LAC", "score": "88"}, "away": {"abbreviation": "GS", "score": "85"}}
+     "home": {"abbreviation": "LAC", "score": "88", "color": "#12173f"}, "away": {"abbreviation": "GS", "score": "85", "color": "#fdb927"}}
   ],
   "proxy-info": {"cachedResponse": false, "status_code": 200, "timestamp": "2026-10-05T14:38:04.183521"}
 }
@@ -173,12 +175,45 @@ donc le matin en Europe `/scores` montre encore les résultats de la nuit. `/upc
 Match en direct (`in`) : `period` = quart-temps en cours (`Q1`…`Q4`, puis `OT`, `2OT`…), `clock` = temps **restant**
 dans le quart-temps (`5:12`, puis `45.3` sous la minute), `detail` = libellé ESPN (`Halftime`, `End of 3rd Quarter`…),
 utile car à la mi-temps `clock` vaut `0.0`, `lastPlay` = dernière action du match (`situation.lastPlay.text` d'ESPN,
-par exemple `Jayson Tatum defensive rebound`, `Celtics Full timeout`), `null` si ESPN ne la fournit pas. Les autres matchs (`pre`, `post`) donnent à la place la couleur de chaque
-équipe (`color`, `#rrggbb`, fournie par ESPN).
+par exemple `Jayson Tatum defensive rebound`, `Celtics Full timeout`), `null` si ESPN ne la fournit pas. Chaque équipe a sa couleur (`color`, `#rrggbb`, fournie par ESPN),
+quel que soit le statut du match.
 
 `startTime` est l'heure de début (`7:00 PM`) dans le fuseau `tz`. Attention : avec `tz=Europe/Paris`, un match du soir
 aux États-Unis commence le lendemain matin en heure de Paris (`4:00 AM`), le champ ne contient que l'heure.
-Les matchs sont triés par heure de début. `force=true` est accepté comme sur `/proxy`.
+Les matchs sont triés par heure de début.
+
+**Rafraîchissement** : comme pour le football, un planificateur interne interroge ESPN en tâche de fond ; les
+clients ne déclenchent aucun appel ESPN pour `/scores`, `/upcoming` et le `liveGame` de `/proxy`.
+- pendant un match (et à partir de 10 min avant le coup d'envoi) : **toutes les 10 s** ;
+- sinon : toutes les 30 min, mais le planificateur se réveille toujours 10 min avant le prochain coup d'envoi
+  (de la journée en cours ou du lendemain), et dès le démarrage du proxy : un match n'est jamais manqué ;
+- un match encore « programmé » après son heure de début (retard) reste suivi toutes les 10 s pendant 3 h ;
+- `/upcoming` : toutes les 30 min, et immédiatement quand ESPN passe au jour suivant ;
+- en cas d'erreur ESPN, la dernière journée valide reste servie ; au démarrage, `503` (quelques secondes) ;
+- `force=true` n'a plus d'effet sur `/scores` et `/upcoming` (les données ont au plus 10 s pendant les matchs).
+- `/nbadata/health` indique l'état des deux journées, le mode live et l'heure du prochain rafraîchissement.
+
+---
+
+## Classement (`/nbadata/standings`)
+
+```
+GET http://localhost/nbadata/standings                     # conférences Est et Ouest
+GET http://localhost/nbadata/standings?conference=east     # une conférence (east / west)
+GET http://localhost/nbadata/standings?team=LAL            # une équipe (id, nom ou alias)
+```
+```json
+{"season": "2027", "conferences": [{"name": "Eastern Conference", "abbreviation": "East", "teams": [
+  {"rank": 1, "teamId": "8", "abbreviation": "DET", "name": "Detroit Pistons", "color": "#C8102E", "wins": 60, "losses": 22,
+   "winPercent": ".732", "gamesBehind": "-", "streak": "W3", "home": "33-8", "road": "27-14", "vsConference": "38-14",
+   "pointsFor": "117.2", "pointsAgainst": "108.9"}]}], "proxy-info": {...}}
+```
+- Source : `site.web.api.espn.com/apis/v2/sports/basketball/nba/standings`, rechargé en tâche de fond toutes les
+  30 min, toutes les 5 min pendant les matchs (`NBADATA_PROXY_STANDINGS_LIVE_REFRESH_MINUTES`).
+- `rank` = tête de série (`playoffSeed`) ; ESPN ne trie pas les équipes, le proxy les trie par `rank`.
+- `color` vient de `nba_teams.json` (le classement ESPN n'a pas de couleurs).
+- Avant le début de la saison régulière, ESPN donne la nouvelle saison avec tous les bilans à 0-0 et toutes les têtes
+  de série à 1 : les équipes sont alors listées par ordre alphabétique.
 
 ---
 

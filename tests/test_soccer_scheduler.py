@@ -17,6 +17,8 @@ FIXTURES = Path(__file__).parent / "fixtures" / "soccer"
 RAW = json.loads((FIXTURES / "scoreboard_mixed.json").read_text(encoding="utf-8"))["events"]
 TEAMS = {code: json.loads((FIXTURES / f"teams_{code}.json").read_text(encoding="utf-8"))
          for code in ("fra.1", "uefa.champions")}
+STANDINGS = {code: json.loads((FIXTURES / f"standings_{code}.json").read_text(encoding="utf-8"))
+             for code in ("fra.1", "uefa.champions", "fra.coupe_de_france")}
 # Recorded events by competition: Ligue 1 (matches of Oct 9-16) and Champions League (live on Oct 14 at 19:00Z)
 EVENTS = {
     "fra.1": [e for e in RAW if e["competitions"][0]["altGameNote"] == "Ligue 1"],
@@ -66,10 +68,12 @@ class FakeESPN:
             code = parts.path.split("/")[-2]
             if code in self.fail:
                 raise HTTPException(status_code=503, detail="Upstream API returned HTTP 503")
-            if code in self.broken and not parts.path.endswith("/teams"):
+            if code in self.broken and parts.path.endswith("/scoreboard"):
                 return {"code": 400, "message": "Failed to get events endpoint."}
             if parts.path.endswith("/teams"):
                 return TEAMS[code]
+            if parts.path.endswith("/standings"):
+                return STANDINGS[code]
             query = parse_qs(parts.query)
             if code == "all":  # All-competitions scoreboard: current ESPN day (Oct 14) unless dates= is given
                 dates = query.get("dates", ["20261014"])[0]
@@ -110,7 +114,8 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         await run_until_idle(scheduler, clock)
         paths = [urlsplit(u).path.split("/")[-1] + "?" + urlsplit(u).query.split("&")[0] for u in fake.urls]
         self.assertEqual(paths, ["scoreboard?dates=202610", "scoreboard?dates=202610", "teams?", "teams?",
-                                 "scoreboard?limit=1000", "scoreboard?dates=20261015"])  # Then /scores and /upcoming
+                                 "scoreboard?limit=1000", "scoreboard?dates=20261015",  # Then /scores and /upcoming
+                                 "standings?", "standings?"])
         ligue1, cl = scheduler.competitions["ligue1"], scheduler.competitions["cl"]
         self.assertEqual([e["id"] for e in events_of(ligue1)], ["401876437"])  # Window Oct 13 -> Oct 28: earlier matches dropped
         self.assertEqual(len(events_of(cl)), 2)
@@ -199,8 +204,8 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         scheduler, clock, fake = make()
         await run_until_idle(scheduler, clock)
         scores, upcoming = scheduler.boards["scores"], scheduler.boards["upcoming"]
-        self.assertTrue(fake.urls[-2].endswith("/soccer/all/scoreboard?limit=1000"))
-        self.assertTrue(fake.urls[-1].endswith("/soccer/all/scoreboard?dates=20261015&limit=1000"))
+        self.assertTrue(any(u.endswith("/soccer/all/scoreboard?limit=1000") for u in fake.urls))
+        self.assertTrue(any(u.endswith("/soccer/all/scoreboard?dates=20261015&limit=1000") for u in fake.urls))
         self.assertEqual((scores.date, upcoming.date), ("2026-10-14", "2026-10-15"))
         self.assertEqual(len(scores.events), 2)  # The two CL matches of Oct 14
         self.assertEqual(scheduler.league_keys(), {"710": "ligue1", "775": "cl"})
@@ -231,6 +236,33 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         await scheduler.run_job("upcoming", upcoming)
         self.assertIsNone(upcoming.events)
         self.assertIn("current ESPN day not known yet", upcoming.last_error)
+
+    async def test_standings_cadence_and_colors(self):
+        scheduler, clock, fake = make()
+        await run_until_idle(scheduler, clock)
+        ligue1, cl = scheduler.competitions["ligue1"], scheduler.competitions["cl"]
+        self.assertTrue(fake.urls[-2].endswith("/apis/v2/sports/soccer/fra.1/standings"))
+        self.assertEqual((ligue1.next_standings_at - clock()).total_seconds(), 1800)
+        self.assertEqual((cl.next_standings_at - clock()).total_seconds(), 300)  # CL match in progress
+        self.assertEqual(scheduler.team_colors("ligue1")["160"], "#011F68")  # PSG, from /teams
+        self.assertTrue(scheduler.health()["competitions"]["ligue1"]["standingsReady"])
+
+    async def test_standings_failure_keeps_last_table(self):
+        scheduler, clock, fake = make()
+        await run_until_idle(scheduler, clock)
+        ligue1 = scheduler.competitions["ligue1"]
+        table = ligue1.standings_response
+        fake.fail.add("fra.1")
+        clock.now = ligue1.next_standings_at
+        await scheduler.run_job("standings", ligue1)
+        self.assertIs(ligue1.standings_response, table)
+        self.assertEqual((ligue1.next_standings_at - clock()).total_seconds(), 30)
+
+    async def test_cup_without_table_is_valid(self):
+        scheduler, clock, fake = make(competitions=[{"key": "coupeDeFrance", "espnCode": "fra.coupe_de_france", "country": "france"}])
+        await scheduler.run_job("standings", scheduler.competitions["coupeDeFrance"])
+        self.assertIsNotNone(scheduler.competitions["coupeDeFrance"].standings_response)
+        self.assertIsNone(scheduler.competitions["coupeDeFrance"].last_error)
 
     async def test_one_request_at_a_time_with_pause(self):
         scheduler, clock, fake = make(request_pause_seconds=1.5)

@@ -1,0 +1,13 @@
+{
+ "uid": "s:600~l:3952",
+ "id": "182",
+ "name": "Coupe de France",
+ "abbreviation": "Coupe de France",
+ "season": {
+  "year": 2025,
+  "startDate": "2025-12-01T05:00Z",
+  "endDate": "2026-07-01T03:59Z",
+  "displayName": "2025-26 Coupe de France"
+ },
+ "seasons": []
+}

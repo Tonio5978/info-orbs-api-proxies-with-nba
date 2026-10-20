@@ -3,7 +3,8 @@
 Clients never trigger ESPN calls: they read the payloads prepared here. Each competition has three jobs:
 - full: the whole date window, month by month (ESPN rejects date ranges), every `idle_seconds`;
 - live: only the days of matches in progress or about to start, every `live_seconds`;
-- teams: the team list, every `teams_seconds`.
+- teams: the team list, every `teams_seconds`;
+- standings: the league table, every `idle_seconds` (every `standings_live_seconds` while a match is live).
 Two more jobs fill the day scoreboards of /scores and /upcoming from ESPN's all-competitions scoreboard:
 - scores: the current ESPN day, every `live_seconds` while a configured competition is playing, else `scores_seconds`;
 - upcoming: the day after, every `upcoming_seconds`.
@@ -23,6 +24,7 @@ from zoneinfo import ZoneInfo
 from . import soccer_espn as espn
 
 BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer/"
+STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/soccer/{code}/standings"
 
 
 @dataclass
@@ -37,6 +39,7 @@ class Settings:
     request_pause_seconds: float = 1.0
     retry_base_seconds: int = 30
     scores_seconds: int = 5 * 60
+    standings_live_seconds: int = 5 * 60
     upcoming_seconds: int = 30 * 60
 
 
@@ -73,6 +76,10 @@ class CompetitionState:
     last_error: Optional[str] = None
     last_error_at: Optional[datetime] = None
     league_id: Optional[str] = None  # ESPN league id ('775'), used to recognise the competition in day scoreboards
+    standings_response: Optional[dict] = None
+    standings_updated_at: Optional[datetime] = None
+    next_standings_at: Optional[datetime] = None
+    standings_failures: int = 0
 
 
 @dataclass
@@ -114,6 +121,7 @@ class SoccerScheduler:
         for state in self.competitions.values():
             state.next_full_at = now
             state.next_teams_at = now
+            state.next_standings_at = now
         self.boards: Dict[str, DayBoard] = {name: DayBoard(name, next_at=now) for name in ("scores", "upcoming")}
         self._request_lock = asyncio.Lock()
         self._last_request_end: Optional[float] = None
@@ -197,6 +205,20 @@ class SoccerScheduler:
         state.teams_updated_at = self.clock()
         self.rebuild_teams_payloads()
 
+    async def refresh_standings(self, state: CompetitionState):
+        data = await self.request(STANDINGS_URL.format(code=state.espn_code))
+        # A knockout cup (Coupe de France) has a valid response without any table ('children')
+        if not isinstance(data, dict) or not ("children" in data or "name" in data):
+            raise ValueError("unexpected standings response")
+        state.standings_response = data
+        state.standings_updated_at = self.clock()
+
+    def team_colors(self, key: str) -> Dict[str, str]:
+        """'#rrggbb' color of each team of a competition, from its /teams data."""
+        state = self.competitions[key]
+        return {str(t.get("id")): f"#{t['color'].lstrip('#')}" for t in espn.espn_teams(state.teams_response or {})
+                if t.get("color")}
+
     async def refresh_scores(self, board: DayBoard):
         data = await self.fetch_all_scoreboard()
         day = (data.get("day") or {}).get("date")
@@ -260,6 +282,7 @@ class SoccerScheduler:
             if state.next_live_at:
                 jobs.append((state.next_live_at, 1, order, "live", state))
             jobs.append((state.next_teams_at, 2, order, "teams", state))
+            jobs.append((state.next_standings_at, 5, order, "standings", state))
         jobs.append((self.boards["scores"].next_at, 3, 0, "scores", self.boards["scores"]))
         jobs.append((self.boards["upcoming"].next_at, 4, 0, "upcoming", self.boards["upcoming"]))
         due, _, _, kind, state = min(jobs, key=lambda j: j[:3])
@@ -277,6 +300,12 @@ class SoccerScheduler:
             elif kind == "live":
                 await self.refresh_live(state)
                 state.live_failures = 0
+            elif kind == "standings":
+                await self.refresh_standings(state)
+                state.standings_failures = 0
+                now = self.clock()
+                state.next_standings_at = now + timedelta(
+                    seconds=s.standings_live_seconds if self.is_live(state, now) else s.idle_seconds)
             else:
                 await self.refresh_teams(state)
                 state.teams_failures = 0
@@ -293,6 +322,10 @@ class SoccerScheduler:
                 state.live_failures += 1
                 delay = backoff(state.live_failures, s.live_seconds, s.idle_seconds)
                 state.next_live_at = now + timedelta(seconds=delay)
+            elif kind == "standings":
+                state.standings_failures += 1
+                delay = backoff(state.standings_failures, s.retry_base_seconds, s.idle_seconds)
+                state.next_standings_at = now + timedelta(seconds=delay)
             else:
                 state.teams_failures += 1
                 delay = backoff(state.teams_failures, s.retry_base_seconds, s.teams_seconds)
@@ -355,6 +388,8 @@ class SoccerScheduler:
                 "nextMatchesRefresh": iso(min(d for d in (state.next_full_at, state.next_live_at) if d)),
                 "teamsReady": state.teams is not None,
                 "teamsUpdatedAt": iso(state.teams_updated_at),
+                "standingsReady": state.standings_response is not None,
+                "standingsUpdatedAt": iso(state.standings_updated_at),
                 "lastError": state.last_error,
                 "lastErrorAt": iso(state.last_error_at),
             }
@@ -370,7 +405,7 @@ class SoccerScheduler:
             }
             for name, board in self.boards.items()
         }
-        ready = all(c["matchesReady"] and c["teamsReady"] for c in competitions.values()) and all(
+        ready = all(c["matchesReady"] and c["teamsReady"] and c["standingsReady"] for c in competitions.values()) and all(
             b["ready"] for b in boards.values())
         started = any(c["matchesReady"] for c in competitions.values())
         return {

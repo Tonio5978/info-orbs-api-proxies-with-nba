@@ -45,6 +45,21 @@ class SoccerRoutesTest(unittest.TestCase):
         other = self.client.get("/ligue1UpcomingMatches", headers={"If-None-Match": '"other"'})
         self.assertEqual(other.status_code, 200)
 
+    def test_standings_routes(self):
+        paths = {route.path for route in soccer_proxy.app.routes}
+        for c in soccer_proxy.COMPETITIONS:
+            self.assertIn(f"/{c['key']}Standings", paths)
+        self.assertEqual(self.client.get("/ligue1Standings").status_code, 503)  # Not loaded yet
+        fixtures = Path(__file__).parent / "fixtures" / "soccer"
+        self.ligue1.standings_response = json.loads((fixtures / "standings_fra.1.json").read_text(encoding="utf-8"))
+        try:
+            r = self.client.get("/ligue1Standings?team=psg")
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual([t["abbreviation"] for t in r.json()["groups"][0]["teams"]], ["PSG"])
+            self.assertIn("etag", r.headers)
+        finally:
+            self.ligue1.standings_response = None
+
     def test_unknown_route(self):
         self.assertEqual(self.client.get("/fooUpcomingMatches").status_code, 404)
 

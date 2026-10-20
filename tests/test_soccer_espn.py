@@ -198,6 +198,41 @@ class TeamsTest(unittest.TestCase):
         self.assertEqual(espn.team_country("887", None, {"887": {"country": "Greece"}}, {}), "greece")
 
 
+class StandingsTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.aliases = json.loads((CONFIG / "aliases.json").read_text(encoding="utf-8"))
+        teams = espn.espn_teams(load("teams_fra.1.json"))
+        cls.colors = {t["id"]: f"#{t['color']}" for t in teams}
+
+    def test_league_table(self):
+        payload = espn.build_standings_payload(load("standings_fra.1.json"), "ligue1", self.colors)
+        self.assertEqual((payload["competition"], len(payload["groups"])), ("ligue1", 1))
+        rows = payload["groups"][0]["teams"]
+        self.assertEqual([r["rank"] for r in rows], list(range(1, 19)))
+        self.assertEqual(list(rows[0]), ["rank", "teamId", "abbreviation", "name", "color", "played", "wins", "draws",
+                                         "losses", "goalsFor", "goalsAgainst", "goalDifference", "points", "zone"])
+        for r in rows:
+            self.assertEqual(r["played"], r["wins"] + r["draws"] + r["losses"])
+            self.assertEqual(r["goalDifference"], r["goalsFor"] - r["goalsAgainst"])
+            self.assertRegex(r["color"], r"^#[0-9A-Fa-f]{6}$")
+        self.assertEqual(rows[0]["zone"]["description"], "Champions League")
+        self.assertTrue(rows[0]["zone"]["color"].startswith("#"))
+        self.assertEqual(rows[-1]["zone"]["description"], "Relegation")
+
+    def test_cup_league_phase_and_knockout_cup(self):
+        cl = espn.build_standings_payload(load("standings_uefa.champions.json"), "cl", {})
+        self.assertEqual((cl["groups"][0]["name"], len(cl["groups"][0]["teams"])), ("League Phase", 36))
+        self.assertIsNone(cl["groups"][0]["teams"][0]["color"])  # No /teams data given
+        cup = espn.build_standings_payload(load("standings_fra.coupe_de_france.json"), "coupeDeFrance", {})
+        self.assertEqual(cup["groups"], [])
+
+    def test_team_filter(self):
+        rows = espn.build_standings_payload(load("standings_fra.1.json"), "ligue1", self.colors, team="psg",
+                                            aliases_config=self.aliases)["groups"][0]["teams"]
+        self.assertEqual([r["abbreviation"] for r in rows], ["PSG"])
+
+
 class DayScoreboardTest(unittest.TestCase):
     """/scores and /upcoming on ESPN's all-competitions scoreboard, recorded on Oct 20 (CL live) and for Oct 21."""
     LEAGUES = {"775": "cl", "740": "laliga", "710": "ligue1"}
@@ -239,7 +274,8 @@ class DayScoreboardTest(unittest.TestCase):
         live = next(g for g in games if g["status"] == "in")
         self.assertIsInstance(live["period"], int)
         self.assertTrue(live["clock"] and live["detail"])
-        self.assertTrue(all("color" not in live[side] for side in ("home", "away")))
+        for side in ("home", "away"):
+            self.assertRegex(live[side]["color"], r"^#[0-9A-Fa-f]{6}$")  # Colors also during live matches
         done = next(g for g in games if g["status"] == "post")
         self.assertNotIn("clock", done)
         for side in ("home", "away"):

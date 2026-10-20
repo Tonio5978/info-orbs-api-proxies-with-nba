@@ -3,6 +3,7 @@
 For each competition of config/competitions.json:
   GET /{key}UpcomingMatches  matches from J-1 to J+14 (ESPN scoreboard fields, reduced)
   GET /{key}Teams            teams with aliases, competitionKey and country
+  GET /{key}Standings        league table(s), with qualification/relegation zones
   GET /scores                all matches of the current ESPN day (configured competitions, ?all=true for every one)
   GET /upcoming              matches of the next day
 Data comes from a background scheduler (soccer_scheduler.py): requests only read memory.
@@ -43,6 +44,7 @@ def load_settings() -> Settings:
         retry_base_seconds=env_int("SOCCER_PROXY_RETRY_BASE_SECONDS", 30),
         scores_seconds=env_int("SOCCER_PROXY_SCORES_REFRESH_MINUTES", 5) * 60,
         upcoming_seconds=env_int("SOCCER_PROXY_UPCOMING_REFRESH_MINUTES", 30) * 60,
+        standings_live_seconds=env_int("SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES", 5) * 60,
     )
 
 
@@ -118,6 +120,18 @@ def teams_endpoint(key: str) -> Callable:
     return endpoint
 
 
+def standings_endpoint(key: str) -> Callable:
+    """League table of a competition; ?team= keeps one team (abbreviation, name or alias)."""
+    async def endpoint(request: Request):
+        state = scheduler.competitions[key]
+        if state.standings_response is None:
+            return json_response(request, None, f"{key} standings")
+        data = espn.build_standings_payload(state.standings_response, key, scheduler.team_colors(key),
+                                            team=request.query_params.get("team"), aliases_config=ALIASES)
+        return json_response(request, Payload.of(data), f"{key} standings")
+    return endpoint
+
+
 def day_endpoint(name: str) -> Callable:
     """/scores and /upcoming: ?all=true, ?competition=<key>, ?team=<abbreviation|name|alias>, ?tz= (default Europe/Paris)"""
     async def endpoint(request: Request):
@@ -149,3 +163,5 @@ for competition in COMPETITIONS:
                    path=f"/{competition['key']}UpcomingMatches")
     handle_request(app, logger, teams_endpoint(competition["key"]), methods=("GET",),
                    path=f"/{competition['key']}Teams")
+    handle_request(app, logger, standings_endpoint(competition["key"]), methods=("GET",),
+                   path=f"/{competition['key']}Standings")
