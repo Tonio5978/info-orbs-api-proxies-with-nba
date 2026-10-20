@@ -12,7 +12,9 @@ Pour chaque compétition de `config/competitions.json` (clé `{cle}`) :
 |---|---|
 | `GET /soccer/{cle}UpcomingMatches` | Matchs de J-1 à J+14 (champs du scoreboard ESPN, réduits) |
 | `GET /soccer/{cle}Teams` | Équipes de la compétition, avec `aliases`, `competitionKey`, `country` |
-| `GET /soccer/health` | État du cache par compétition |
+| `GET /soccer/scores` | Tous les matchs de la journée ESPN en cours, toutes compétitions configurées (terminés, en direct, à venir) |
+| `GET /soccer/upcoming` | Les matchs du lendemain |
+| `GET /soccer/health` | État du cache par compétition et des deux journées |
 
 Clés livrées (les mêmes que l'API d'origine, plus `bundesliga`) :
 
@@ -72,6 +74,46 @@ Les routes sont sensibles à la casse (`/soccer/serieAUpcomingMatches`, pas `ser
 - `country` : pays de la compétition ; pour les coupes européennes, pays du championnat configuré où joue l'équipe
   (PSG → `france`), sinon `country` de `aliases.json`, sinon `null` (jamais deviné).
 
+## Scores du jour et matchs du lendemain (`/soccer/scores`, `/soccer/upcoming`)
+
+Même principe que `/nbadata/scores`, à partir du scoreboard ESPN toutes compétitions
+(`soccer/all/scoreboard`) : journée ESPN en cours pour `/scores`, jour suivant pour `/upcoming`.
+
+```bash
+curl -s http://localhost/soccer/scores                       # compétitions de competitions.json uniquement
+curl -s "http://localhost/soccer/scores?all=true"            # tout le football du jour chez ESPN (~100 matchs)
+curl -s "http://localhost/soccer/scores?competition=cl"      # une compétition (clé de competitions.json)
+curl -s "http://localhost/soccer/upcoming?team=psg"          # une équipe : abréviation, nom (avec ou sans accents) ou alias
+curl -s "http://localhost/soccer/scores?tz=UTC"              # fuseau de startTime (défaut Europe/Paris)
+```
+
+```json
+{"date": "2026-10-20", "count": 9, "games": [
+  {"gameId": "401915399", "status": "in", "competition": "cl", "competitionName": "UEFA Champions League, League Phase",
+   "period": 1, "clock": "45'+1'", "detail": "45'+1'", "startTime": "21:00",
+   "home": {"abbreviation": "PSG", "score": "1"}, "away": {"abbreviation": "BAR", "score": "0"},
+   "goals": [{"minute": "38'", "team": "PSG", "player": "D. Doué", "type": "Goal", "penalty": false, "ownGoal": false}],
+   "cards": [{"minute": "17'", "team": "BAR", "player": "J. Cancelo", "card": "yellow"}]},
+  {"gameId": "401915403", "status": "post", "competition": "cl", "competitionName": "UEFA Champions League, League Phase",
+   "startTime": "18:45", "home": {"abbreviation": "FEN", "score": "2", "color": "#ffff00"},
+   "away": {"abbreviation": "SLP", "score": "2", "color": "#ffffff"}, "goals": [...], "cards": [...]}
+]}
+```
+- `status` : `pre`, `in`, `post` (ESPN). `competition` : clé de `competitions.json`, `null` pour les autres compétitions
+  (avec `?all=true`) ; `competitionName` : libellé ESPN.
+- Match en direct : `period` (1 ou 2, puis prolongations), `clock` (`67'`, `45'+2'`), `detail` (`HT` à la mi-temps).
+  Autres matchs : couleur de chaque équipe (`#rrggbb`).
+- `startTime` : heure de coup d'envoi en 24 h, heure de Paris par défaut.
+- `goals` : minute, équipe, buteur, type ESPN (`Goal`, `Goal - Header`, `Penalty - Scored`, `Own Goal`…), `penalty`,
+  `ownGoal`. Un but contre son camp compte pour l'équipe qui en bénéficie (comme le score) ; `player` est alors le
+  joueur adverse. Les tirs au but ne sont pas comptés comme des buts.
+- `cards` : minute, équipe, joueur, `card` = `yellow` ou `red`. `player` peut être `null` quand ESPN ne nomme personne
+  (carton à un membre du staff).
+- ESPN n'a pas de « dernière action » textuelle en football (`situation.lastPlay`, présent en NBA, vaut toujours `null`).
+- Rafraîchissement : `/scores` toutes les 20 s quand un match d'une compétition configurée est en cours ou va commencer,
+  sinon toutes les 5 min ; `/upcoming` toutes les 30 min. Les matchs des autres compétitions (`?all=true`) peuvent donc
+  avoir jusqu'à 5 min de retard quand aucune de vos compétitions ne joue.
+
 ## Configuration
 
 **`config/competitions.json`** — une entrée par compétition (une clé = deux routes) :
@@ -105,6 +147,8 @@ Le dossier `config/` est monté en lecture seule dans le conteneur (`docker-comp
 | `SOCCER_PROXY_TEAMS_REFRESH_HOURS` | `24` | Rafraîchissement des équipes |
 | `SOCCER_PROXY_REQUEST_PAUSE_MS` | `1000` | Pause entre deux requêtes ESPN |
 | `SOCCER_PROXY_RETRY_BASE_SECONDS` | `30` | Premier délai de réessai après une erreur (doublé à chaque échec, max 30 min) |
+| `SOCCER_PROXY_SCORES_REFRESH_MINUTES` | `5` | `/scores` quand aucune compétition configurée ne joue |
+| `SOCCER_PROXY_UPCOMING_REFRESH_MINUTES` | `30` | `/upcoming` |
 | `SOCCER_PROXY_REQUESTS_PER_MINUTE` | `60` | Limite par IP et par route |
 | `SOCCER_PROXY_CONFIG_DIR` | `/app/config` | Dossier de `competitions.json` et `aliases.json` |
 

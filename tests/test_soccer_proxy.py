@@ -1,6 +1,7 @@
 """Tests of the soccer HTTP routes and headers (cache filled by hand, scheduler not started)."""
 import json
 import unittest
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -52,6 +53,40 @@ class SoccerRoutesTest(unittest.TestCase):
         self.assertEqual(body["service"], "soccer_proxy")
         self.assertEqual(set(body["competitions"]), {c["key"] for c in soccer_proxy.COMPETITIONS})
         self.assertIn(body["status"], ("starting", "degraded", "ok"))
+
+
+class SoccerDayRoutesTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.client = TestClient(soccer_proxy.app)
+        fixtures = Path(__file__).parent / "fixtures" / "soccer"
+        cls.today = json.loads((fixtures / "scoreboard_all_20261020.json").read_text(encoding="utf-8"))["events"]
+
+    def setUp(self):
+        self.board = soccer_proxy.scheduler.boards["scores"]
+        soccer_proxy.scheduler.competitions["cl"].league_id = "775"
+
+    def tearDown(self):
+        self.board.date = self.board.events = None
+        soccer_proxy.scheduler.competitions["cl"].league_id = None
+
+    def test_not_loaded_yet(self):
+        r = self.client.get("/upcoming")
+        self.assertEqual((r.status_code, r.headers["retry-after"]), (503, "10"))
+
+    def test_scores_filters_and_headers(self):
+        self.board.date, self.board.events = "2026-10-20", self.today
+        r = self.client.get("/scores")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual((r.json()["date"], r.json()["count"]), ("2026-10-20", 9))  # Only the configured CL
+        self.assertEqual(r.headers["access-control-allow-origin"], "*")
+        self.assertEqual(self.client.get("/scores", headers={"If-None-Match": r.headers["etag"]}).status_code, 304)
+        self.assertEqual(self.client.get("/scores?all=true").json()["count"], len(self.today))
+        self.assertEqual(self.client.get("/scores?competition=ligue1").json()["count"], 0)
+        self.assertEqual(self.client.get("/scores?team=psg").json()["count"], 1)
+        self.assertEqual(self.client.get("/scores?tz=UTC").json()["games"][0]["startTime"], "16:45")
+        self.assertEqual(self.client.get("/scores?competition=nope").status_code, 400)
+        self.assertEqual(self.client.get("/scores?tz=Mars/Base").status_code, 400)
 
 
 if __name__ == "__main__":

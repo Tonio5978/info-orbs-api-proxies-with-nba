@@ -4,6 +4,9 @@ Clients never trigger ESPN calls: they read the payloads prepared here. Each com
 - full: the whole date window, month by month (ESPN rejects date ranges), every `idle_seconds`;
 - live: only the days of matches in progress or about to start, every `live_seconds`;
 - teams: the team list, every `teams_seconds`.
+Two more jobs fill the day scoreboards of /scores and /upcoming from ESPN's all-competitions scoreboard:
+- scores: the current ESPN day, every `live_seconds` while a configured competition is playing, else `scores_seconds`;
+- upcoming: the day after, every `upcoming_seconds`.
 Jobs run one at a time, with a pause between two ESPN requests. A failed job keeps the last valid
 data and is retried with an increasing delay.
 """
@@ -33,6 +36,8 @@ class Settings:
     teams_seconds: int = 24 * 3600
     request_pause_seconds: float = 1.0
     retry_base_seconds: int = 30
+    scores_seconds: int = 5 * 60
+    upcoming_seconds: int = 30 * 60
 
 
 @dataclass
@@ -67,6 +72,20 @@ class CompetitionState:
     teams_failures: int = 0
     last_error: Optional[str] = None
     last_error_at: Optional[datetime] = None
+    league_id: Optional[str] = None  # ESPN league id ('775'), used to recognise the competition in day scoreboards
+
+
+@dataclass
+class DayBoard:
+    """Raw ESPN events of one day of the all-competitions scoreboard."""
+    name: str
+    date: Optional[str] = None
+    events: Optional[List[dict]] = None
+    updated_at: Optional[datetime] = None
+    next_at: Optional[datetime] = None
+    failures: int = 0
+    last_error: Optional[str] = None
+    last_error_at: Optional[datetime] = None
 
 
 def backoff(failures: int, base: float, cap: float) -> float:
@@ -95,6 +114,7 @@ class SoccerScheduler:
         for state in self.competitions.values():
             state.next_full_at = now
             state.next_teams_at = now
+        self.boards: Dict[str, DayBoard] = {name: DayBoard(name, next_at=now) for name in ("scores", "upcoming")}
         self._request_lock = asyncio.Lock()
         self._last_request_end: Optional[float] = None
         self.requests_made = 0
@@ -117,7 +137,27 @@ class SoccerScheduler:
         data = await self.request(f"{BASE_URL}{state.espn_code}/scoreboard?dates={dates}&limit=1000")
         if not isinstance(data, dict) or not isinstance(data.get("events"), list):
             raise ValueError(f"unexpected scoreboard response for dates={dates}")
+        league_id = ((data.get("leagues") or [{}])[0] or {}).get("id")
+        if league_id:
+            state.league_id = str(league_id)
         return data["events"]
+
+    def league_keys(self) -> Dict[str, str]:
+        """ESPN league id -> competition key, from the competition scoreboards (or, failing that, event uids)."""
+        keys = {}
+        for state in self.competitions.values():
+            league_id = state.league_id or next(
+                (espn.league_id_from_uid(e.get("uid")) for e in state.events.values() if e.get("uid")), None)
+            if league_id:
+                keys[league_id] = state.key
+        return keys
+
+    async def fetch_all_scoreboard(self, date: Optional[str] = None) -> dict:
+        query = f"dates={date.replace('-', '')}&limit=1000" if date else "limit=1000"  # Default limit is 100 matches
+        data = await self.request(f"{BASE_URL}all/scoreboard?{query}")
+        if not isinstance(data, dict) or not isinstance(data.get("events"), list):
+            raise ValueError("unexpected all-competitions scoreboard response")
+        return data
 
     # ── Jobs ───────────────────────────────────────────────────────────────────
 
@@ -156,6 +196,27 @@ class SoccerScheduler:
         state.teams_response = data
         state.teams_updated_at = self.clock()
         self.rebuild_teams_payloads()
+
+    async def refresh_scores(self, board: DayBoard):
+        data = await self.fetch_all_scoreboard()
+        day = (data.get("day") or {}).get("date")
+        if not day:  # ESPN days follow US Eastern time
+            day = self.clock().astimezone(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+        board.date, board.events, board.updated_at = day, data["events"], self.clock()
+
+    async def refresh_upcoming(self, board: DayBoard):
+        current = self.boards["scores"].date
+        if not current:
+            raise ValueError("current ESPN day not known yet")
+        next_day = (datetime.strptime(current, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+        data = await self.fetch_all_scoreboard(next_day)
+        board.date, board.events, board.updated_at = next_day, data["events"], self.clock()
+
+    def scores_live(self, now: datetime) -> bool:
+        """True if a match of a configured competition is live or about to start in the current day."""
+        board, keys = self.boards["scores"], self.league_keys()
+        return any(espn.needs_live_refresh(e, now, self.settings.prematch_minutes)
+                   for e in board.events or [] if espn.league_id_from_uid(e.get("uid")) in keys)
 
     # ── Payloads and scheduling ────────────────────────────────────────────────
 
@@ -199,10 +260,14 @@ class SoccerScheduler:
             if state.next_live_at:
                 jobs.append((state.next_live_at, 1, order, "live", state))
             jobs.append((state.next_teams_at, 2, order, "teams", state))
+        jobs.append((self.boards["scores"].next_at, 3, 0, "scores", self.boards["scores"]))
+        jobs.append((self.boards["upcoming"].next_at, 4, 0, "upcoming", self.boards["upcoming"]))
         due, _, _, kind, state = min(jobs, key=lambda j: j[:3])
         return due, kind, state
 
-    async def run_job(self, kind: str, state: CompetitionState):
+    async def run_job(self, kind: str, state):
+        if kind in ("scores", "upcoming"):
+            return await self.run_board_job(kind, state)
         s = self.settings
         try:
             if kind == "full":
@@ -233,6 +298,26 @@ class SoccerScheduler:
                 delay = backoff(state.teams_failures, s.retry_base_seconds, s.teams_seconds)
                 state.next_teams_at = now + timedelta(seconds=delay)
             self.logger.error(f"{state.key} {kind} refresh failed ({state.last_error}), retry in {delay:.0f}s")
+
+    async def run_board_job(self, kind: str, board: DayBoard):
+        s = self.settings
+        try:
+            if kind == "scores":
+                await self.refresh_scores(board)
+                now = self.clock()
+                board.next_at = now + timedelta(seconds=s.live_seconds if self.scores_live(now) else s.scores_seconds)
+            else:
+                await self.refresh_upcoming(board)
+                board.next_at = self.clock() + timedelta(seconds=s.upcoming_seconds)
+            board.failures = 0
+        except Exception as e:  # Keep the last valid day, log and retry later
+            now = self.clock()
+            board.failures += 1
+            board.last_error = f"{kind}: {type(e).__name__}: {getattr(e, 'detail', e)}"
+            board.last_error_at = now
+            delay = backoff(board.failures, s.retry_base_seconds, s.upcoming_seconds)
+            board.next_at = now + timedelta(seconds=delay)
+            self.logger.error(f"{kind} refresh failed ({board.last_error}), retry in {delay:.0f}s")
 
     async def step(self, max_wait: float = 1.0):
         """Run the next job if it's due, otherwise wait (at most `max_wait` seconds)."""
@@ -273,10 +358,24 @@ class SoccerScheduler:
                 "lastError": state.last_error,
                 "lastErrorAt": iso(state.last_error_at),
             }
-        ready = all(c["matchesReady"] and c["teamsReady"] for c in competitions.values())
+        boards = {
+            name: {
+                "ready": board.events is not None,
+                "date": board.date,
+                "events": len(board.events or []),
+                "updatedAt": iso(board.updated_at),
+                "nextRefresh": iso(board.next_at),
+                "lastError": board.last_error,
+                "lastErrorAt": iso(board.last_error_at),
+            }
+            for name, board in self.boards.items()
+        }
+        ready = all(c["matchesReady"] and c["teamsReady"] for c in competitions.values()) and all(
+            b["ready"] for b in boards.values())
         started = any(c["matchesReady"] for c in competitions.values())
         return {
             "status": "ok" if ready else ("degraded" if started else "starting"),
             "espnRequests": self.requests_made,
             "competitions": competitions,
+            "dayScoreboards": boards,
         }

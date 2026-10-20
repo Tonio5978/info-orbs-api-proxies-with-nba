@@ -3,6 +3,8 @@
 For each competition of config/competitions.json:
   GET /{key}UpcomingMatches  matches from J-1 to J+14 (ESPN scoreboard fields, reduced)
   GET /{key}Teams            teams with aliases, competitionKey and country
+  GET /scores                all matches of the current ESPN day (configured competitions, ?all=true for every one)
+  GET /upcoming              matches of the next day
 Data comes from a background scheduler (soccer_scheduler.py): requests only read memory.
 """
 import json
@@ -10,11 +12,12 @@ import os
 import re
 from pathlib import Path
 from typing import Callable, Optional
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import Request, Response
+from fastapi import HTTPException, Request, Response
 
 from .common import setup_logger, create_app, fetch_data, handle_request
+from . import soccer_espn as espn
 from .soccer_scheduler import Payload, Settings, SoccerScheduler
 
 logger = setup_logger("SOCCER")
@@ -38,6 +41,8 @@ def load_settings() -> Settings:
         teams_seconds=env_int("SOCCER_PROXY_TEAMS_REFRESH_HOURS", 24) * 3600,
         request_pause_seconds=env_int("SOCCER_PROXY_REQUEST_PAUSE_MS", 1000) / 1000,
         retry_base_seconds=env_int("SOCCER_PROXY_RETRY_BASE_SECONDS", 30),
+        scores_seconds=env_int("SOCCER_PROXY_SCORES_REFRESH_MINUTES", 5) * 60,
+        upcoming_seconds=env_int("SOCCER_PROXY_UPCOMING_REFRESH_MINUTES", 30) * 60,
     )
 
 
@@ -78,6 +83,8 @@ app = create_app(
         f"Window: J-{SETTINGS.days_before} to J+{SETTINGS.days_after} ({SETTINGS.tz.key})",
         f"Refresh: {SETTINGS.live_seconds}s when live (or kickoff within {SETTINGS.prematch_minutes} min), "
         f"{SETTINGS.idle_seconds // 60} min otherwise, teams every {SETTINGS.teams_seconds // 3600} h",
+        f"/scores: every {SETTINGS.live_seconds}s when a configured competition is live, "
+        f"{SETTINGS.scores_seconds // 60} min otherwise; /upcoming: {SETTINGS.upcoming_seconds // 60} min",
         f"ESPN requests: one at a time, {SETTINGS.request_pause_seconds:g}s pause",
     ],
     background=scheduler.run,
@@ -110,6 +117,32 @@ def teams_endpoint(key: str) -> Callable:
         return json_response(request, scheduler.competitions[key].teams, f"{key} teams")
     return endpoint
 
+
+def day_endpoint(name: str) -> Callable:
+    """/scores and /upcoming: ?all=true, ?competition=<key>, ?team=<abbreviation|name|alias>, ?tz= (default Europe/Paris)"""
+    async def endpoint(request: Request):
+        board = scheduler.boards[name]
+        if board.events is None:
+            return json_response(request, None, f"{name} scoreboard")
+        params = request.query_params
+        competition = params.get("competition")
+        if competition and competition not in scheduler.competitions:
+            raise HTTPException(status_code=400, detail=f"Unknown competition: {competition}")
+        tz_name = params.get("tz") or "Europe/Paris"
+        try:
+            tz = ZoneInfo(tz_name)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise HTTPException(status_code=400, detail=f"Unknown time zone: {tz_name}")
+        data = espn.build_day_payload(
+            board.date, board.events, scheduler.league_keys(), tz,
+            include_all=params.get("all", "").lower() == "true", competition=competition,
+            team=params.get("team"), aliases_config=ALIASES)
+        return json_response(request, Payload.of(data), f"{name} scoreboard")
+    return endpoint
+
+
+handle_request(app, logger, day_endpoint("scores"), methods=("GET",), path="/scores")
+handle_request(app, logger, day_endpoint("upcoming"), methods=("GET",), path="/upcoming")
 
 for competition in COMPETITIONS:
     handle_request(app, logger, matches_endpoint(competition["key"]), methods=("GET",),

@@ -169,6 +169,105 @@ def build_matches_payload(events: Iterable[dict], start: datetime, end: datetime
     return {"events": kept}
 
 
+# ── Day scoreboards (/scores, /upcoming) ──────────────────────────────────────
+
+def league_id_from_uid(uid: str) -> Optional[str]:
+    """ESPN league id from an event uid ('s:600~l:775~e:401915402' -> '775')."""
+    for part in (uid or "").split("~"):
+        if part.startswith("l:"):
+            return part[2:]
+    return None
+
+
+def format_local_time(date_str: str, tz: ZoneInfo) -> Optional[str]:
+    """Kickoff as 24-hour local time ('21:00')."""
+    when = parse_espn_date(date_str)
+    return when.astimezone(tz).strftime("%H:%M") if when else None
+
+
+def goals_and_cards(event: dict) -> tuple:
+    """Goals and yellow/red cards of a match from its ESPN details.
+
+    For an own goal ESPN credits the team that benefits (consistent with the score); the player
+    belongs to the other team. Penalty shoot-out kicks are not goals and are left out.
+    """
+    competition = (event.get("competitions") or [{}])[0]
+    abbreviations = {str(c.get("team", {}).get("id")): c.get("team", {}).get("abbreviation")
+                     for c in competition.get("competitors", [])}
+    goals, cards = [], []
+    for detail in competition.get("details", []):
+        athletes = detail.get("athletesInvolved") or [{}]
+        common = {
+            "minute": detail.get("clock", {}).get("displayValue"),
+            "team": abbreviations.get(str(detail.get("team", {}).get("id"))),
+            "player": athletes[0].get("shortName") or athletes[0].get("displayName"),
+        }
+        if detail.get("scoringPlay") and not detail.get("shootout"):
+            goals.append({**common, "type": detail.get("type", {}).get("text"),
+                          "penalty": bool(detail.get("penaltyKick")), "ownGoal": bool(detail.get("ownGoal"))})
+        elif detail.get("redCard") or detail.get("yellowCard"):
+            cards.append({**common, "card": "red" if detail.get("redCard") else "yellow"})
+    return goals, cards
+
+
+def format_day_game(event: dict, competition_key: Optional[str], tz: ZoneInfo) -> dict:
+    """Match summary in the /nbadata/scores style: status, live period/clock, teams, goals and cards.
+
+    Live matches ('in') get period, clock and detail ('HT' at half time); other matches get
+    each team's color ('#rrggbb').
+    """
+    status = event.get("status") or {}
+    state = status.get("type", {}).get("state")
+    competition = (event.get("competitions") or [{}])[0]
+    side = {c.get("homeAway"): c for c in competition.get("competitors", [])}
+
+    def team(c: dict) -> dict:
+        info = c.get("team", {})
+        summary = {"abbreviation": info.get("abbreviation"), "score": _score(c.get("score"))}
+        if state != "in":
+            summary["color"] = f"#{_strip_hash(info['color'])}" if info.get("color") else None
+        return summary
+
+    game = {"gameId": event.get("id"), "status": state, "competition": competition_key,
+            "competitionName": competition.get("altGameNote")}
+    if state == "in":
+        game["period"] = status.get("period")
+        game["clock"] = status.get("displayClock")
+        game["detail"] = status.get("type", {}).get("shortDetail")
+    game["startTime"] = format_local_time(event.get("date", ""), tz)
+    game["home"] = team(side.get("home", {}))
+    game["away"] = team(side.get("away", {}))
+    game["goals"], game["cards"] = goals_and_cards(event)
+    return game
+
+
+def team_matches(competitor: dict, wanted: str, aliases_config: Dict[str, dict]) -> bool:
+    """?team= filter: ESPN id, abbreviation, name (with or without accents) or alias from aliases.json."""
+    info = competitor.get("team", {})
+    wanted = strip_accents(wanted).lower().strip()
+    names = {str(info.get("id")), info.get("abbreviation") or "", info.get("displayName") or "", info.get("shortDisplayName") or ""}
+    names |= set(aliases_config.get(str(info.get("id")), {}).get("aliases", []))
+    return wanted in {strip_accents(n).lower() for n in names if n}
+
+
+def build_day_payload(day: str, events: Iterable[dict], league_keys: Dict[str, str], tz: ZoneInfo,
+                      include_all: bool = False, competition: Optional[str] = None, team: Optional[str] = None,
+                      aliases_config: Optional[Dict[str, dict]] = None) -> dict:
+    """Games of a scoreboard day: configured competitions only, unless include_all."""
+    games = []
+    for event in sorted(events, key=lambda e: (e.get("date") or "", e.get("id") or "")):
+        key = league_keys.get(league_id_from_uid(event.get("uid")))
+        if not include_all and key is None:
+            continue
+        if competition and key != competition:
+            continue
+        if team and not any(team_matches(c, team, aliases_config or {})
+                            for c in (event.get("competitions") or [{}])[0].get("competitors", [])):
+            continue
+        games.append(format_day_game(event, key, tz))
+    return {"date": day, "count": len(games), "games": games}
+
+
 # ── Teams projection (/…Teams) ────────────────────────────────────────────────
 
 def strip_accents(text: str) -> str:

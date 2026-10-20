@@ -308,6 +308,8 @@ def format_scoreboard_game(event: dict, tz) -> dict:
         game["period"] = format_period(status.get("period", 0))
         game["clock"] = status.get("displayClock", "")
         game["detail"] = status.get("type", {}).get("shortDetail", "")  # e.g. 'Halftime', 'End of 3rd Quarter'
+        situation = (event.get("competitions") or [{}])[0].get("situation") or {}
+        game["lastPlay"] = situation.get("lastPlay", {}).get("text")  # e.g. 'Jayson Tatum defensive rebound'
     game["startTime"] = format_game_time(event.get("date", ""), tz)
     game["home"] = team(side.get("home", {}))
     game["away"] = team(side.get("away", {}))

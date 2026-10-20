@@ -161,7 +161,8 @@ donc le matin en Europe `/scores` montre encore les résultats de la nuit. `/upc
   "games": [
     {"gameId": "401914127", "status": "post", "startTime": "7:00 PM",
      "home": {"abbreviation": "DEN", "score": "97", "color": "#0e2240"}, "away": {"abbreviation": "UTAH", "score": "109", "color": "#4e008e"}},
-    {"gameId": "401918010", "status": "in", "period": "Q3", "clock": "5:12", "detail": "5:12 - 3rd Quarter", "startTime": "7:00 PM",
+    {"gameId": "401918010", "status": "in", "period": "Q3", "clock": "5:12", "detail": "5:12 - 3rd Quarter",
+     "lastPlay": "Jayson Tatum defensive rebound", "startTime": "7:00 PM",
      "home": {"abbreviation": "LAC", "score": "88"}, "away": {"abbreviation": "GS", "score": "85"}}
   ],
   "proxy-info": {"cachedResponse": false, "status_code": 200, "timestamp": "2026-10-05T14:38:04.183521"}
@@ -171,7 +172,8 @@ donc le matin en Europe `/scores` montre encore les résultats de la nuit. `/upc
 `status` est l'état ESPN : `pre` (pas commencé, score `"0"`), `in` (en direct), `post` (terminé).
 Match en direct (`in`) : `period` = quart-temps en cours (`Q1`…`Q4`, puis `OT`, `2OT`…), `clock` = temps **restant**
 dans le quart-temps (`5:12`, puis `45.3` sous la minute), `detail` = libellé ESPN (`Halftime`, `End of 3rd Quarter`…),
-utile car à la mi-temps `clock` vaut `0.0`. Les autres matchs (`pre`, `post`) donnent à la place la couleur de chaque
+utile car à la mi-temps `clock` vaut `0.0`, `lastPlay` = dernière action du match (`situation.lastPlay.text` d'ESPN,
+par exemple `Jayson Tatum defensive rebound`, `Celtics Full timeout`), `null` si ESPN ne la fournit pas. Les autres matchs (`pre`, `post`) donnent à la place la couleur de chaque
 équipe (`color`, `#rrggbb`, fournie par ESPN).
 
 `startTime` est l'heure de début (`7:00 PM`) dans le fuseau `tz`. Attention : avec `tz=Europe/Paris`, un match du soir

@@ -198,5 +198,93 @@ class TeamsTest(unittest.TestCase):
         self.assertEqual(espn.team_country("887", None, {"887": {"country": "Greece"}}, {}), "greece")
 
 
+class DayScoreboardTest(unittest.TestCase):
+    """/scores and /upcoming on ESPN's all-competitions scoreboard, recorded on Oct 20 (CL live) and for Oct 21."""
+    LEAGUES = {"775": "cl", "740": "laliga", "710": "ligue1"}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.today = load("scoreboard_all_20261020.json")["events"]
+        cls.tomorrow = load("scoreboard_all_20261021.json")["events"]
+        cls.mixed = load("scoreboard_mixed.json")["events"]
+        cls.aliases = json.loads((CONFIG / "aliases.json").read_text(encoding="utf-8"))
+
+    def payload(self, events, **kw):
+        return espn.build_day_payload("2026-10-20", events, self.LEAGUES, PARIS, aliases_config=self.aliases, **kw)
+
+    def test_league_id_from_uid(self):
+        self.assertEqual(espn.league_id_from_uid("s:600~l:775~e:401915402"), "775")
+        self.assertIsNone(espn.league_id_from_uid(""))
+
+    def test_configured_competitions_only_unless_all(self):
+        today = self.payload(self.today)
+        self.assertEqual((today["date"], today["count"]), ("2026-10-20", 9))
+        self.assertTrue(all(g["competition"] == "cl" for g in today["games"]))
+        self.assertEqual(self.payload(self.tomorrow)["count"], 10)  # 9 CL + 1 LaLiga
+        everything = self.payload(self.today, include_all=True)
+        self.assertEqual(everything["count"], len(self.today))
+        self.assertIn(None, {g["competition"] for g in everything["games"]})  # Non-configured competitions
+        self.assertIn("Liga MX", {g["competitionName"] for g in everything["games"]})
+
+    def test_competition_and_team_filters(self):
+        self.assertEqual([g["home"]["abbreviation"] for g in self.payload(self.tomorrow, competition="laliga")["games"]], ["LEV"])
+        psg = self.payload(self.today, team="psg")["games"]  # Alias from aliases.json
+        self.assertEqual([(g["home"]["abbreviation"], g["away"]["abbreviation"]) for g in psg], [("PSG", "BAR")])
+        atm = self.payload(self.today, team="Atletico Madrid")["games"]  # Without the accent
+        self.assertEqual([g["away"]["abbreviation"] for g in atm], ["ATM"])
+        self.assertEqual(self.payload(self.today, team="nobody")["count"], 0)
+
+    def test_game_format_live_and_not_live(self):
+        games = self.payload(self.today)["games"]
+        live = next(g for g in games if g["status"] == "in")
+        self.assertIsInstance(live["period"], int)
+        self.assertTrue(live["clock"] and live["detail"])
+        self.assertTrue(all("color" not in live[side] for side in ("home", "away")))
+        done = next(g for g in games if g["status"] == "post")
+        self.assertNotIn("clock", done)
+        for side in ("home", "away"):
+            self.assertRegex(done[side]["color"], r"^#[0-9A-Fa-f]{6}$")
+            self.assertIsInstance(done[side]["score"], str)
+        self.assertEqual(list(done), ["gameId", "status", "competition", "competitionName", "startTime",
+                                      "home", "away", "goals", "cards"])
+
+    def test_start_time_in_paris_24h(self):
+        times = {g["gameId"]: g["startTime"] for g in self.payload(self.today)["games"]}
+        self.assertEqual(sorted(set(times.values())), ["18:45", "21:00"])  # 16:45Z and 19:00Z (CEST)
+        self.assertEqual(espn.format_local_time("2026-10-25T19:00Z", PARIS), "20:00")  # After the switch to CET
+
+    def test_goals_match_the_score(self):
+        for e in self.mixed + self.today:
+            if e["status"]["type"]["state"] != "post":
+                continue
+            goals, _ = espn.goals_and_cards(e)
+            for c in e["competitions"][0]["competitors"]:
+                scored = [g for g in goals if g["team"] == c["team"]["abbreviation"]]
+                self.assertEqual(len(scored), int(c["score"]), f"{e['name']} {c['team']['abbreviation']}")
+
+    def test_goal_and_card_details(self):
+        by_name = {e["name"]: espn.goals_and_cards(e) for e in self.mixed}
+        goals, cards = by_name["Strasbourg at Nice"]
+        own = next(g for g in goals if g["ownGoal"])
+        self.assertEqual((own["team"], own["player"], own["minute"]), ("NICE", "P. Diop", "45'+2'"))  # Credited to Nice
+        goals, _ = by_name["Toulouse at AS Monaco"]
+        penalty = next(g for g in goals if g["penalty"])
+        self.assertEqual(penalty["type"], "Penalty - Scored")
+        _, cards = by_name["Lyon at Lens"]
+        self.assertIn("red", {c["card"] for c in cards})
+        self.assertIn("yellow", {c["card"] for c in cards})
+        for g in goals:
+            self.assertEqual(list(g), ["minute", "team", "player", "type", "penalty", "ownGoal"])
+        for c in cards:
+            self.assertEqual(list(c), ["minute", "team", "player", "card"])
+
+    def test_shootout_kicks_are_not_goals(self):
+        event = copy.deepcopy(next(e for e in self.mixed if e["name"] == "Toulouse at AS Monaco"))
+        details = event["competitions"][0]["details"]
+        before = len(espn.goals_and_cards(event)[0])
+        details.append({**copy.deepcopy(next(d for d in details if d.get("scoringPlay"))), "shootout": True})
+        self.assertEqual(len(espn.goals_and_cards(event)[0]), before)
+
+
 if __name__ == "__main__":
     unittest.main()

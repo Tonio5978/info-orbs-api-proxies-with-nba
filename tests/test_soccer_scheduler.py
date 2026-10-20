@@ -70,7 +70,12 @@ class FakeESPN:
                 return {"code": 400, "message": "Failed to get events endpoint."}
             if parts.path.endswith("/teams"):
                 return TEAMS[code]
-            dates = parse_qs(parts.query)["dates"][0]
+            query = parse_qs(parts.query)
+            if code == "all":  # All-competitions scoreboard: current ESPN day (Oct 14) unless dates= is given
+                dates = query.get("dates", ["20261014"])[0]
+                events = [e for c in self.events.values() for e in c if e["date"].replace("-", "").startswith(dates)]
+                return {**({} if "dates" in query else {"day": {"date": "2026-10-14"}}), "events": copy.deepcopy(events)}
+            dates = query["dates"][0]
             events = [e for e in self.events.get(code, []) if e["date"].replace("-", "").startswith(dates)]
             return {"events": copy.deepcopy(events)}
         finally:
@@ -104,7 +109,8 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         scheduler, clock, fake = make()
         await run_until_idle(scheduler, clock)
         paths = [urlsplit(u).path.split("/")[-1] + "?" + urlsplit(u).query.split("&")[0] for u in fake.urls]
-        self.assertEqual(paths, ["scoreboard?dates=202610", "scoreboard?dates=202610", "teams?", "teams?"])
+        self.assertEqual(paths, ["scoreboard?dates=202610", "scoreboard?dates=202610", "teams?", "teams?",
+                                 "scoreboard?limit=1000", "scoreboard?dates=20261015"])  # Then /scores and /upcoming
         ligue1, cl = scheduler.competitions["ligue1"], scheduler.competitions["cl"]
         self.assertEqual([e["id"] for e in events_of(ligue1)], ["401876437"])  # Window Oct 13 -> Oct 28: earlier matches dropped
         self.assertEqual(len(events_of(cl)), 2)
@@ -188,6 +194,43 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         scheduler, clock, fake = make(now=datetime(2026, 10, 31, 12, tzinfo=timezone.utc))
         await scheduler.run_job("full", scheduler.competitions["ligue1"])
         self.assertEqual([parse_qs(urlsplit(u).query)["dates"][0] for u in fake.urls], ["202610", "202611"])
+
+    async def test_day_scoreboards(self):
+        scheduler, clock, fake = make()
+        await run_until_idle(scheduler, clock)
+        scores, upcoming = scheduler.boards["scores"], scheduler.boards["upcoming"]
+        self.assertTrue(fake.urls[-2].endswith("/soccer/all/scoreboard?limit=1000"))
+        self.assertTrue(fake.urls[-1].endswith("/soccer/all/scoreboard?dates=20261015&limit=1000"))
+        self.assertEqual((scores.date, upcoming.date), ("2026-10-14", "2026-10-15"))
+        self.assertEqual(len(scores.events), 2)  # The two CL matches of Oct 14
+        self.assertEqual(scheduler.league_keys(), {"710": "ligue1", "775": "cl"})
+        self.assertEqual((scores.next_at - clock()).total_seconds(), 20)  # A configured competition is live
+        self.assertEqual((upcoming.next_at - clock()).total_seconds(), 1800)
+        self.assertTrue(scheduler.health()["dayScoreboards"]["scores"]["ready"])
+
+    async def test_scores_idle_when_no_configured_match_is_live(self):
+        scheduler, clock, fake = make(competitions=[COMPETITIONS[0]])  # Ligue 1 only: the live CL matches don't count
+        await run_until_idle(scheduler, clock)
+        self.assertEqual((scheduler.boards["scores"].next_at - clock()).total_seconds(), 300)
+
+    async def test_day_scoreboard_failure_keeps_last_day(self):
+        scheduler, clock, fake = make()
+        await run_until_idle(scheduler, clock)
+        scores = scheduler.boards["scores"]
+        events = scores.events
+        fake.fail.add("all")
+        clock.now = scores.next_at
+        await scheduler.run_job("scores", scores)
+        self.assertIs(scores.events, events)
+        self.assertEqual((scores.failures, (scores.next_at - clock()).total_seconds()), (1, 30))
+        self.assertIn("503", scores.last_error)
+
+    async def test_upcoming_waits_for_the_current_day(self):
+        scheduler, clock, fake = make()
+        upcoming = scheduler.boards["upcoming"]
+        await scheduler.run_job("upcoming", upcoming)
+        self.assertIsNone(upcoming.events)
+        self.assertIn("current ESPN day not known yet", upcoming.last_error)
 
     async def test_one_request_at_a_time_with_pause(self):
         scheduler, clock, fake = make(request_pause_seconds=1.5)
