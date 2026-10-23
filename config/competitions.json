@@ -8,5 +8,13 @@
   {"key": "epl", "espnCode": "eng.1", "name": "Premier League", "country": "england"},
   {"key": "laliga", "espnCode": "esp.1", "name": "LaLiga", "country": "spain"},
   {"key": "serieA", "espnCode": "ita.1", "name": "Serie A", "country": "italy"},
-  {"key": "bundesliga", "espnCode": "ger.1", "name": "Bundesliga", "country": "germany"}
+  {"key": "bundesliga", "espnCode": "ger.1", "name": "Bundesliga", "country": "germany"},
+  {"key": "ligaPortugal", "espnCode": "por.1", "name": "Liga Portugal", "country": "portugal"},
+  {"key": "saudiProLeague", "espnCode": "ksa.1", "name": "Saudi Pro League", "country": "saudi arabia"},
+  {"key": "tacaPortugal", "espnCode": "por.taca.portugal", "name": "Taça de Portugal", "country": "portugal", "standings": false},
+  {"key": "coppaItalia", "espnCode": "ita.coppa_italia", "name": "Coppa Italia", "country": "italy", "standings": false},
+  {"key": "dfbPokal", "espnCode": "ger.dfb_pokal", "name": "DFB-Pokal", "country": "germany", "standings": false},
+  {"key": "copaDelRey", "espnCode": "esp.copa_del_rey", "name": "Copa del Rey", "country": "spain", "standings": false},
+  {"key": "faCup", "espnCode": "eng.fa", "name": "FA Cup", "country": "england", "standings": false},
+  {"key": "leagueCup", "espnCode": "eng.league_cup", "name": "Carabao Cup", "country": "england", "standings": false}
 ]

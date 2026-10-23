@@ -212,7 +212,8 @@ def setup_logger(app_name: str) -> logging.Logger:
 
     # Create and configure a handler with the app-specific prefix
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter(f"{app_name}:%(levelname)s:%(message)s"))
+    # Timestamp with UTC offset ('2026-10-23 21:15:02+0200'): local time of the container, see TZ in sample.env
+    handler.setFormatter(logging.Formatter(f"%(asctime)s {app_name}:%(levelname)s:%(message)s", datefmt="%Y-%m-%d %H:%M:%S%z"))
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
 
@@ -382,7 +383,7 @@ def handle_request(
     """Register a route with request logging and the app's rate limit (one counter per route)."""
 
     async def proxy_request(request: Request):
-        logger.info(f"{datetime.now().isoformat()} Received {request.method} request: {redact_url(request.url)} from {get_remote_address(request)}")
+        logger.info(f"Received {request.method} request: {redact_url(request.url)} from {get_remote_address(request)}")
         return await endpoint_func(request)
 
     # slowapi keys its counters by function name: give each route its own

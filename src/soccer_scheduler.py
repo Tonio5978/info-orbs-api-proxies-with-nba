@@ -4,7 +4,8 @@ Clients never trigger ESPN calls: they read the payloads prepared here. Each com
 - full: the whole date window, month by month (ESPN rejects date ranges), every `idle_seconds`;
 - live: only the days of matches in progress or about to start, every `live_seconds`;
 - teams: the team list, every `teams_seconds`;
-- standings: the league table, every `idle_seconds` (every `standings_live_seconds` while a match is live).
+- standings: the league table, every `standings_seconds` (every `standings_live_seconds` while a match is live,
+  brought forward when a match kicks off and once more right after the competition's last live match ends).
 Two more jobs fill the day scoreboards of /scores and /upcoming from ESPN's all-competitions scoreboard:
 - scores: the current ESPN day, every `live_seconds` while a configured competition is playing, else `scores_seconds`;
 - upcoming: the day after, every `upcoming_seconds`.
@@ -33,13 +34,15 @@ class Settings:
     days_before: int = 1
     days_after: int = 14
     live_seconds: int = 20
-    idle_seconds: int = 30 * 60
+    idle_seconds: int = 60 * 60       # Matches of a competition, outside live periods
+    standings_seconds: int = 120 * 60  # League tables, outside live periods
+    retry_max_seconds: int = 30 * 60  # Longest delay between two retries after an ESPN error
     prematch_minutes: int = 10
     teams_seconds: int = 24 * 3600
     request_pause_seconds: float = 1.0
     retry_base_seconds: int = 30
     scores_seconds: int = 5 * 60
-    standings_live_seconds: int = 5 * 60
+    standings_live_seconds: int = 10 * 60
     upcoming_seconds: int = 30 * 60
 
 
@@ -76,10 +79,12 @@ class CompetitionState:
     last_error: Optional[str] = None
     last_error_at: Optional[datetime] = None
     league_id: Optional[str] = None  # ESPN league id ('775'), used to recognise the competition in day scoreboards
+    has_standings: bool = True  # False for knockout cups ("standings": false in competitions.json)
     standings_response: Optional[dict] = None
     standings_updated_at: Optional[datetime] = None
     next_standings_at: Optional[datetime] = None
     standings_failures: int = 0
+    was_live: bool = False  # Live at the previous matches update (to refresh the table right after the matches end)
 
 
 @dataclass
@@ -114,14 +119,15 @@ class SoccerScheduler:
         self.sleep = sleep
         self.monotonic = monotonic
         self.competitions: Dict[str, CompetitionState] = {
-            c["key"]: CompetitionState(c["key"], c["espnCode"], c.get("name", c["key"]), c.get("country"))
+            c["key"]: CompetitionState(c["key"], c["espnCode"], c.get("name", c["key"]), c.get("country"),
+                                       has_standings=c.get("standings", True))
             for c in competitions
         }
         now = clock()
         for state in self.competitions.values():
             state.next_full_at = now
             state.next_teams_at = now
-            state.next_standings_at = now
+            state.next_standings_at = now if state.has_standings else None
         self.boards: Dict[str, DayBoard] = {name: DayBoard(name, next_at=now) for name in ("scores", "upcoming")}
         self._request_lock = asyncio.Lock()
         self._last_request_end: Optional[float] = None
@@ -247,6 +253,13 @@ class SoccerScheduler:
         state.matches = Payload.of(espn.build_matches_payload(state.events.values(), start, end))
         state.matches_updated_at = now
         state.next_live_at = self.next_live_time(state, now)
+        # The table must follow the matches: at kickoff it switches to the live cadence, and once the
+        # last live match is over it is refreshed again soon instead of waiting for the slow cadence
+        live = self.is_live(state, now)
+        if state.has_standings and state.next_standings_at and (live or state.was_live):
+            soon = now + timedelta(seconds=self.settings.standings_live_seconds)
+            state.next_standings_at = min(state.next_standings_at, soon)
+        state.was_live = live
 
     def next_live_time(self, state: CompetitionState, now: datetime) -> Optional[datetime]:
         """In `live_seconds` while a match is live or about to start, else when the next match gets close."""
@@ -282,7 +295,8 @@ class SoccerScheduler:
             if state.next_live_at:
                 jobs.append((state.next_live_at, 1, order, "live", state))
             jobs.append((state.next_teams_at, 2, order, "teams", state))
-            jobs.append((state.next_standings_at, 5, order, "standings", state))
+            if state.next_standings_at:
+                jobs.append((state.next_standings_at, 5, order, "standings", state))
         jobs.append((self.boards["scores"].next_at, 3, 0, "scores", self.boards["scores"]))
         jobs.append((self.boards["upcoming"].next_at, 4, 0, "upcoming", self.boards["upcoming"]))
         due, _, _, kind, state = min(jobs, key=lambda j: j[:3])
@@ -305,7 +319,7 @@ class SoccerScheduler:
                 state.standings_failures = 0
                 now = self.clock()
                 state.next_standings_at = now + timedelta(
-                    seconds=s.standings_live_seconds if self.is_live(state, now) else s.idle_seconds)
+                    seconds=s.standings_live_seconds if self.is_live(state, now) else s.standings_seconds)
             else:
                 await self.refresh_teams(state)
                 state.teams_failures = 0
@@ -316,15 +330,15 @@ class SoccerScheduler:
             state.last_error_at = now
             if kind == "full":
                 state.full_failures += 1
-                delay = backoff(state.full_failures, s.retry_base_seconds, s.idle_seconds)
+                delay = backoff(state.full_failures, s.retry_base_seconds, s.retry_max_seconds)
                 state.next_full_at = now + timedelta(seconds=delay)
             elif kind == "live":
                 state.live_failures += 1
-                delay = backoff(state.live_failures, s.live_seconds, s.idle_seconds)
+                delay = backoff(state.live_failures, s.live_seconds, s.retry_max_seconds)
                 state.next_live_at = now + timedelta(seconds=delay)
             elif kind == "standings":
                 state.standings_failures += 1
-                delay = backoff(state.standings_failures, s.retry_base_seconds, s.idle_seconds)
+                delay = backoff(state.standings_failures, s.retry_base_seconds, s.retry_max_seconds)
                 state.next_standings_at = now + timedelta(seconds=delay)
             else:
                 state.teams_failures += 1
@@ -388,7 +402,7 @@ class SoccerScheduler:
                 "nextMatchesRefresh": iso(min(d for d in (state.next_full_at, state.next_live_at) if d)),
                 "teamsReady": state.teams is not None,
                 "teamsUpdatedAt": iso(state.teams_updated_at),
-                "standingsReady": state.standings_response is not None,
+                "standingsReady": state.standings_response is not None if state.has_standings else None,  # None: no table
                 "standingsUpdatedAt": iso(state.standings_updated_at),
                 "lastError": state.last_error,
                 "lastErrorAt": iso(state.last_error_at),
@@ -405,7 +419,8 @@ class SoccerScheduler:
             }
             for name, board in self.boards.items()
         }
-        ready = all(c["matchesReady"] and c["teamsReady"] and c["standingsReady"] for c in competitions.values()) and all(
+        ready = all(c["matchesReady"] and c["teamsReady"] and c["standingsReady"] is not False
+                    for c in competitions.values()) and all(
             b["ready"] for b in boards.values())
         started = any(c["matchesReady"] for c in competitions.values())
         return {

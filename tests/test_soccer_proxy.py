@@ -48,7 +48,12 @@ class SoccerRoutesTest(unittest.TestCase):
     def test_standings_routes(self):
         paths = {route.path for route in soccer_proxy.app.routes}
         for c in soccer_proxy.COMPETITIONS:
-            self.assertIn(f"/{c['key']}Standings", paths)
+            if c.get("standings", True):
+                self.assertIn(f"/{c['key']}Standings", paths)
+            else:  # Knockout cups: matches and teams, no table
+                self.assertNotIn(f"/{c['key']}Standings", paths)
+                self.assertIn(f"/{c['key']}UpcomingMatches", paths)
+        self.assertEqual(self.client.get("/faCupStandings").status_code, 404)
         self.assertEqual(self.client.get("/ligue1Standings").status_code, 503)  # Not loaded yet
         fixtures = Path(__file__).parent / "fixtures" / "soccer"
         self.ligue1.standings_response = json.loads((fixtures / "standings_fra.1.json").read_text(encoding="utf-8"))

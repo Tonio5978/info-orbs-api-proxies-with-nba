@@ -1,0 +1,1024 @@
+{
+ "events": [
+  {
+   "id": "401928436",
+   "uid": "s:600~l:3959~e:401928436",
+   "date": "2026-10-23T18:30Z",
+   "name": "Clyde at Penicuik",
+   "shortName": "CLY @ PEN",
+   "season": {
+    "year": 2026,
+    "type": 14566,
+    "slug": "second-round"
+   },
+   "competitions": [
+    {
+     "id": "401928436",
+     "uid": "s:600~l:3959~e:401928436~c:401928436",
+     "date": "2026-10-23T18:30Z",
+     "startDate": "2026-10-23T18:30Z",
+     "attendance": 0,
+     "timeValid": true,
+     "recent": true,
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0'",
+      "type": {
+       "id": "6",
+       "name": "STATUS_POSTPONED",
+       "state": "post",
+       "completed": false,
+       "description": "Postponed",
+       "detail": "Postponed",
+       "shortDetail": "Postponed"
+      }
+     },
+     "venue": {
+      "id": "11658",
+      "fullName": "Montgomery Park",
+      "address": {
+       "city": "Penicuik",
+       "country": "Scotland"
+      }
+     },
+     "format": {
+      "regulation": {
+       "periods": 2
+      }
+     },
+     "altGameNote": "Scottish Cup, Second Round",
+     "notes": [],
+     "geoBroadcasts": [],
+     "broadcasts": [],
+     "broadcast": "",
+     "competitors": [
+      {
+       "id": "20126",
+       "uid": "s:600~t:20126",
+       "type": "team",
+       "order": 0,
+       "homeAway": "home",
+       "winner": false,
+       "form": "DWWWL",
+       "score": "0",
+       "team": {
+        "id": "20126",
+        "uid": "s:600~t:20126",
+        "abbreviation": "PEN",
+        "displayName": "Penicuik",
+        "shortDisplayName": "Penicuik",
+        "name": "Penicuik",
+        "location": "Penicuik",
+        "color": "000000",
+        "alternateColor": "C60000",
+        "isActive": true,
+        "logo": "",
+        "links": [
+         {
+          "rel": [
+           "clubhouse",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/club/_/id/20126/penicuik",
+          "text": "Clubhouse",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "stats",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/stats/_/id/20126/penicuik",
+          "text": "Stats",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "stats",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:20126&section=stats",
+          "text": "Stats",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "schedule",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/fixtures/_/id/20126/penicuik",
+          "text": "Fixtures",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "schedule",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:20126&section=scores",
+          "text": "Fixtures",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "squad",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/squad/_/id/20126/penicuik",
+          "text": "Squad",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "squad",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:20126&section=squad",
+          "text": "Squad",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         }
+        ]
+       },
+       "statistics": [
+        {
+         "name": "appearances",
+         "abbreviation": "APP",
+         "displayValue": "0"
+        },
+        {
+         "name": "foulsCommitted",
+         "abbreviation": "FC",
+         "displayValue": "0"
+        },
+        {
+         "name": "wonCorners",
+         "abbreviation": "CW",
+         "displayValue": "0"
+        },
+        {
+         "name": "goalAssists",
+         "abbreviation": "A",
+         "displayValue": "0"
+        },
+        {
+         "name": "possessionPct",
+         "abbreviation": "PP",
+         "displayValue": "0"
+        },
+        {
+         "name": "shotAssists",
+         "abbreviation": "SHAST",
+         "displayValue": "0"
+        },
+        {
+         "name": "shotsOnTarget",
+         "abbreviation": "SOG",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalGoals",
+         "abbreviation": "G",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalShots",
+         "abbreviation": "SHOT",
+         "displayValue": "0"
+        }
+       ]
+      },
+      {
+       "id": "255",
+       "uid": "s:600~t:255",
+       "type": "team",
+       "order": 1,
+       "homeAway": "away",
+       "winner": false,
+       "form": "DWLLL",
+       "score": "0",
+       "team": {
+        "id": "255",
+        "uid": "s:600~t:255",
+        "abbreviation": "CLY",
+        "displayName": "Clyde",
+        "shortDisplayName": "Clyde",
+        "name": "Clyde",
+        "location": "Clyde",
+        "color": "C8142F",
+        "alternateColor": "C60000",
+        "isActive": true,
+        "logo": "",
+        "links": [
+         {
+          "rel": [
+           "clubhouse",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/club/_/id/255/clyde",
+          "text": "Clubhouse",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "stats",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/stats/_/id/255/clyde",
+          "text": "Stats",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "stats",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:255&section=stats",
+          "text": "Stats",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "schedule",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/fixtures/_/id/255/clyde",
+          "text": "Fixtures",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "schedule",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:255&section=scores",
+          "text": "Fixtures",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "squad",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/squad/_/id/255/clyde",
+          "text": "Squad",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "squad",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:255&section=squad",
+          "text": "Squad",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         }
+        ],
+        "venue": {
+         "id": "254"
+        }
+       },
+       "statistics": [
+        {
+         "name": "appearances",
+         "abbreviation": "APP",
+         "displayValue": "0"
+        },
+        {
+         "name": "foulsCommitted",
+         "abbreviation": "FC",
+         "displayValue": "0"
+        },
+        {
+         "name": "wonCorners",
+         "abbreviation": "CW",
+         "displayValue": "0"
+        },
+        {
+         "name": "goalAssists",
+         "abbreviation": "A",
+         "displayValue": "0"
+        },
+        {
+         "name": "possessionPct",
+         "abbreviation": "PP",
+         "displayValue": "0"
+        },
+        {
+         "name": "shotAssists",
+         "abbreviation": "SHAST",
+         "displayValue": "0"
+        },
+        {
+         "name": "shotsOnTarget",
+         "abbreviation": "SOG",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalGoals",
+         "abbreviation": "G",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalShots",
+         "abbreviation": "SHOT",
+         "displayValue": "0"
+        }
+       ]
+      }
+     ],
+     "details": [],
+     "odds": [
+      null
+     ],
+     "wasSuspended": false,
+     "playByPlayAvailable": true,
+     "playByPlayAthletes": true
+    }
+   ],
+   "status": {
+    "clock": 0.0,
+    "displayClock": "0'",
+    "type": {
+     "id": "6",
+     "name": "STATUS_POSTPONED",
+     "state": "post",
+     "completed": false,
+     "description": "Postponed",
+     "detail": "Postponed",
+     "shortDetail": "Postponed"
+    }
+   },
+   "venue": {
+    "displayName": "Montgomery Park"
+   },
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/401928436/clyde-penicuik",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false,
+     "isHidden": false
+    }
+   ]
+  },
+  {
+   "id": "401925581",
+   "uid": "s:600~l:8312~e:401925581",
+   "date": "2026-10-20T21:00Z",
+   "name": "Puerto Montt at Colo Colo",
+   "shortName": "PMO @ COL",
+   "season": {
+    "year": 2026,
+    "type": 14046,
+    "slug": "quarterfinals"
+   },
+   "competitions": [
+    {
+     "id": "401925581",
+     "uid": "s:600~l:8312~e:401925581~c:401925581",
+     "date": "2026-10-20T21:00Z",
+     "startDate": "2026-10-20T21:00Z",
+     "attendance": 0,
+     "timeValid": true,
+     "recent": false,
+     "status": {
+      "clock": 2700.0,
+      "displayClock": "45'+1'",
+      "period": 1,
+      "type": {
+       "id": "8",
+       "name": "STATUS_SUSPENDED",
+       "state": "post",
+       "completed": false,
+       "description": "Suspended",
+       "detail": "Suspended",
+       "shortDetail": "Susp"
+      }
+     },
+     "venue": {
+      "id": "2658",
+      "fullName": "Estadio Monumental David Arellano",
+      "address": {
+       "city": "Santiago",
+       "country": "Chile"
+      }
+     },
+     "format": {
+      "regulation": {
+       "periods": 2
+      }
+     },
+     "leg": {
+      "value": 2,
+      "displayValue": "2nd Leg"
+     },
+     "series": {
+      "competitors": [
+       {
+        "id": "2688",
+        "uid": "s:600~t:2688",
+        "winner": false,
+        "aggregateScore": 2.0
+       },
+       {
+        "id": "4423",
+        "uid": "s:600~t:4423",
+        "winner": false,
+        "aggregateScore": 0.0
+       }
+      ],
+      "completed": false,
+      "title": "Quarterfinals",
+      "totalCompetitions": 2
+     },
+     "altGameNote": "Copa Chile, Quarterfinals",
+     "notes": [],
+     "geoBroadcasts": [],
+     "broadcasts": [],
+     "broadcast": "",
+     "competitors": [
+      {
+       "id": "2688",
+       "uid": "s:600~t:2688",
+       "type": "team",
+       "order": 0,
+       "homeAway": "home",
+       "winner": false,
+       "form": "DWWDD",
+       "score": "1",
+       "aggregateScore": 2.0,
+       "team": {
+        "id": "2688",
+        "uid": "s:600~t:2688",
+        "abbreviation": "COL",
+        "displayName": "Colo Colo",
+        "shortDisplayName": "Colo Colo",
+        "name": "Colo Colo",
+        "location": "Colo Colo",
+        "color": "050505",
+        "alternateColor": "000000",
+        "isActive": true,
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/2688.png",
+        "links": [
+         {
+          "rel": [
+           "clubhouse",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/club/_/id/2688/colo-colo",
+          "text": "Clubhouse",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "stats",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/stats/_/id/2688/colo-colo",
+          "text": "Stats",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "stats",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:2688&section=stats",
+          "text": "Stats",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "schedule",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/fixtures/_/id/2688/colo-colo",
+          "text": "Fixtures",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "schedule",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:2688&section=scores",
+          "text": "Fixtures",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "squad",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/squad/_/id/2688/colo-colo",
+          "text": "Squad",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "squad",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:2688&section=squad",
+          "text": "Squad",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         }
+        ],
+        "venue": {
+         "id": "2658"
+        }
+       },
+       "statistics": [
+        {
+         "name": "appearances",
+         "abbreviation": "APP",
+         "displayValue": "0"
+        },
+        {
+         "name": "foulsCommitted",
+         "abbreviation": "FC",
+         "displayValue": "4"
+        },
+        {
+         "name": "wonCorners",
+         "abbreviation": "CW",
+         "displayValue": "3"
+        },
+        {
+         "name": "goalAssists",
+         "abbreviation": "A",
+         "displayValue": "1"
+        },
+        {
+         "name": "possessionPct",
+         "abbreviation": "PP",
+         "displayValue": "50.9"
+        },
+        {
+         "name": "shotAssists",
+         "abbreviation": "SHAST",
+         "displayValue": "0"
+        },
+        {
+         "name": "shotsOnTarget",
+         "abbreviation": "SOG",
+         "displayValue": "4"
+        },
+        {
+         "name": "totalGoals",
+         "abbreviation": "G",
+         "displayValue": "1"
+        },
+        {
+         "name": "totalShots",
+         "abbreviation": "SHOT",
+         "displayValue": "8"
+        }
+       ]
+      },
+      {
+       "id": "4423",
+       "uid": "s:600~t:4423",
+       "type": "team",
+       "order": 1,
+       "homeAway": "away",
+       "winner": false,
+       "form": "LLWLW",
+       "score": "0",
+       "aggregateScore": 0.0,
+       "team": {
+        "id": "4423",
+        "uid": "s:600~t:4423",
+        "abbreviation": "PMO",
+        "displayName": "Puerto Montt",
+        "shortDisplayName": "Puerto Montt",
+        "name": "Puerto Montt",
+        "location": "Puerto Montt",
+        "color": "12592D",
+        "alternateColor": "12592D",
+        "isActive": true,
+        "logo": "https://a.espncdn.com/i/teamlogos/soccer/500/4423.png",
+        "links": [
+         {
+          "rel": [
+           "clubhouse",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/club/_/id/4423/puerto-montt",
+          "text": "Clubhouse",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "stats",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/stats/_/id/4423/puerto-montt",
+          "text": "Stats",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "stats",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:4423&section=stats",
+          "text": "Stats",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "schedule",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/fixtures/_/id/4423/puerto-montt",
+          "text": "Fixtures",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "schedule",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:4423&section=scores",
+          "text": "Fixtures",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "squad",
+           "desktop",
+           "team"
+          ],
+          "href": "https://www.espn.com/soccer/team/squad/_/id/4423/puerto-montt",
+          "text": "Squad",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         },
+         {
+          "rel": [
+           "squad",
+           "sportscenter",
+           "app",
+           "team"
+          ],
+          "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:4423&section=squad",
+          "text": "Squad",
+          "isExternal": false,
+          "isPremium": false,
+          "isHidden": false
+         }
+        ]
+       },
+       "statistics": [
+        {
+         "name": "appearances",
+         "abbreviation": "APP",
+         "displayValue": "0"
+        },
+        {
+         "name": "foulsCommitted",
+         "abbreviation": "FC",
+         "displayValue": "3"
+        },
+        {
+         "name": "wonCorners",
+         "abbreviation": "CW",
+         "displayValue": "1"
+        },
+        {
+         "name": "goalAssists",
+         "abbreviation": "A",
+         "displayValue": "0"
+        },
+        {
+         "name": "possessionPct",
+         "abbreviation": "PP",
+         "displayValue": "49.1"
+        },
+        {
+         "name": "shotAssists",
+         "abbreviation": "SHAST",
+         "displayValue": "0"
+        },
+        {
+         "name": "shotsOnTarget",
+         "abbreviation": "SOG",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalGoals",
+         "abbreviation": "G",
+         "displayValue": "0"
+        },
+        {
+         "name": "totalShots",
+         "abbreviation": "SHOT",
+         "displayValue": "4"
+        }
+       ]
+      }
+     ],
+     "details": [
+      {
+       "type": {
+        "id": "70",
+        "text": "Goal"
+       },
+       "clock": {
+        "value": 640.0,
+        "displayValue": "11'"
+       },
+       "team": {
+        "id": "2688"
+       },
+       "scoreValue": 1,
+       "scoringPlay": true,
+       "redCard": false,
+       "yellowCard": false,
+       "penaltyKick": false,
+       "ownGoal": false,
+       "shootout": false,
+       "athletesInvolved": [
+        {
+         "id": "141825",
+         "displayName": "Marcelo Correa",
+         "shortName": "M. Correa",
+         "fullName": "Marcelo Correa",
+         "jersey": "9",
+         "team": {
+          "id": "2688"
+         },
+         "links": [
+          {
+           "rel": [
+            "playercard",
+            "desktop",
+            "athlete"
+           ],
+           "href": "https://www.espn.com/soccer/player/_/id/141825/marcelo-correa",
+           "isHidden": false
+          }
+         ],
+         "position": "CF-L"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 800.0,
+        "displayValue": "14'"
+       },
+       "team": {
+        "id": "2688"
+       },
+       "scoreValue": 0,
+       "scoringPlay": false,
+       "redCard": false,
+       "yellowCard": true,
+       "penaltyKick": false,
+       "ownGoal": false,
+       "shootout": false,
+       "athletesInvolved": [
+        {
+         "id": "365149",
+         "displayName": "Francisco Marchant",
+         "shortName": "F. Marchant",
+         "fullName": "Francisco Marchant",
+         "jersey": "7",
+         "team": {
+          "id": "2688"
+         },
+         "links": [
+          {
+           "rel": [
+            "playercard",
+            "desktop",
+            "athlete"
+           ],
+           "href": "https://www.espn.com/soccer/player/_/id/365149/francisco-marchant",
+           "isHidden": false
+          }
+         ],
+         "position": "RM"
+        }
+       ]
+      },
+      {
+       "type": {
+        "id": "94",
+        "text": "Yellow Card"
+       },
+       "clock": {
+        "value": 2690.0,
+        "displayValue": "45'"
+       },
+       "team": {
+        "id": "4423"
+       },
+       "scoreValue": 0,
+       "scoringPlay": false,
+       "redCard": false,
+       "yellowCard": true,
+       "penaltyKick": false,
+       "ownGoal": false,
+       "shootout": false,
+       "athletesInvolved": [
+        {
+         "id": "205433",
+         "displayName": "Maximiliano Riveros",
+         "shortName": "M. Riveros",
+         "fullName": "Maximiliano Riveros",
+         "jersey": "4",
+         "team": {
+          "id": "4423"
+         },
+         "links": [
+          {
+           "rel": [
+            "playercard",
+            "desktop",
+            "athlete"
+           ],
+           "href": "https://www.espn.com/soccer/player/_/id/205433/maximiliano-riveros",
+           "isHidden": false
+          }
+         ],
+         "position": "CD-L"
+        }
+       ]
+      }
+     ],
+     "odds": [
+      null
+     ],
+     "wasSuspended": false,
+     "playByPlayAvailable": true,
+     "playByPlayAthletes": true
+    }
+   ],
+   "status": {
+    "clock": 2700.0,
+    "displayClock": "45'+1'",
+    "period": 1,
+    "type": {
+     "id": "8",
+     "name": "STATUS_SUSPENDED",
+     "state": "post",
+     "completed": false,
+     "description": "Suspended",
+     "detail": "Suspended",
+     "shortDetail": "Susp"
+    }
+   },
+   "venue": {
+    "displayName": "Estadio Monumental David Arellano"
+   },
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/401925581/puerto-montt-colo-colo",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false,
+     "isHidden": false
+    },
+    {
+     "language": "en-US",
+     "rel": [
+      "team-stats",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/team-stats/_/gameId/401925581/league/chi.copa_chi",
+     "text": "Team Stats",
+     "shortText": "Team Stats",
+     "isExternal": false,
+     "isPremium": false,
+     "isHidden": false
+    },
+    {
+     "language": "en-US",
+     "rel": [
+      "player-stats",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/player-stats/_/gameId/401925581/league/chi.copa_chi",
+     "text": "Player Stats",
+     "shortText": "Player Stats",
+     "isExternal": false,
+     "isPremium": false,
+     "isHidden": false
+    }
+   ]
+  }
+ ]
+}

@@ -43,7 +43,7 @@ Each proxy is an independent FastAPI app (`src/<name>_proxy.py`) running on its 
 | soccer-proxy | 8090 | `/soccer/` | ESPN soccer, background scheduler, see `README-SOCCER.md` |
 
 **Shared infrastructure (`src/common.py`):**
-- `setup_logger(app_name)` — configures uvicorn logger with app-specific prefix
+- `setup_logger(app_name)` — configures uvicorn logger with a timestamp (`2026-10-23 22:48:03+0200`, container `TZ`, UTC by default) and app-specific prefix; access logs use the same format
 - `create_app(app_name, default_requests_per_minute, banner_title, banner_lines)` — FastAPI app with lifespan (startup banner, shared httpx client), slowapi rate limiting (`{APP_NAME}_REQUESTS_PER_MINUTE`) and `/health`
 - `fetch_data(url, logger, ...)` — upstream call through the shared httpx client, with optional retry logic
 - `handle_request(app, logger, endpoint, methods, path)` — registers the rate-limited `/proxy` route
@@ -84,13 +84,14 @@ the first load).
 - Competitions come from `config/competitions.json` (`key`, `espnCode`, `country`); each key gets
   `/{key}UpcomingMatches` and `/{key}Teams`. Team aliases/country overrides: `config/aliases.json`, keyed by ESPN team id.
 - ESPN rejects `dates=YYYYMMDD-YYYYMMDD` ranges (HTTP 400): the J-1..J+14 window is fetched per month
-  (`dates=YYYYMM`, widened by a day for US month boundaries) and filtered locally; during live matches (or
+  (`dates=YYYYMM`, widened by a day for US month boundaries) and filtered locally, every 60 min
+  (`SOCCER_PROXY_IDLE_REFRESH_MINUTES`; standings use their own 120 min setting); during live matches (or
   10 min before kickoff) only the affected days are refetched every 20 s.
 - One ESPN request at a time with a pause; failures keep the last payload and back off (30 s doubling, max 30 min).
 - Projection in `src/soccer_espn.py` (pure functions) must keep ESPN field names/nesting exactly; no
   `competitionKey` in matches; `period` only once a match has started; colors without `#`.
-- `/scores` and `/upcoming` (ESPN `soccer/all/scoreboard`, current ESPN day and the next one, `limit=1000`): configured competitions only unless `?all=true` (league recognised by the `l:<id>` part of the event uid), `?competition=`, `?team=`, `?tz=` (default Europe/Paris, 24 h). Games in the `/nbadata/scores` style (team colors for every status) plus `goals` and `cards` from ESPN details (own goals credited to the benefiting team, shoot-out kicks excluded). Filtering runs per request on the cached raw events.
-- `/{key}Standings`: ESPN `apis/v2/sports/soccer/{code}/standings` per competition (30 min, 5 min while it has a live match), in ESPN order, with `zone` from the entry note and team colors from the competition's `/teams` data; knockout cups (Coupe de France) have no `groups`.
+- `/scores` and `/upcoming` (ESPN `soccer/all/scoreboard`, current ESPN day and the next one, `limit=1000`): configured competitions only unless `?all=true` (league recognised by the `l:<id>` part of the event uid), `?competition=`, `?team=`, `?tz=` (default Europe/Paris, 24 h). Games in the `/nbadata/scores` style (team `displayName` and colors for every status, `statusName` = ESPN status name; matches that never kicked off — ESPN `post` + not completed + no period, e.g. STATUS_POSTPONED — are `pre`) plus `goals` and `cards` from ESPN details (own goals credited to the benefiting team, shoot-out kicks excluded). Filtering runs per request on the cached raw events.
+- `/{key}Standings`: ESPN `apis/v2/sports/soccer/{code}/standings` per competition (120 min, 10 min while it has a live match; brought forward at kickoff and right after the last live match ends), in ESPN order, with `zone` from the entry note and team colors from the competition's `/teams` data; knockout cups (Coupe de France) have no `groups`. Competitions with `"standings": false` in `competitions.json` (the national cups) get no `/{key}Standings` route and no standings job.
 - Team logos: `scripts/download_soccer_logos.py` saves `soccer_logos/<ESPN team id>.png` (+ `index.json`), served by nginx at `/soccer/logo/`; images are git-ignored.
 - Tests: `python -m unittest discover -s tests -t .` (fixtures in `tests/fixtures/soccer/`, real ESPN responses).
 

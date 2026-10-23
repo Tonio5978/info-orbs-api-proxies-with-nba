@@ -17,7 +17,7 @@ Pour chaque compétition de `config/competitions.json` (clé `{cle}`) :
 | `GET /soccer/upcoming` | Les matchs du lendemain |
 | `GET /soccer/health` | État du cache par compétition et des deux journées |
 
-Clés livrées (les mêmes que l'API d'origine, plus `bundesliga`) :
+Clés livrées (les mêmes que l'API d'origine, plus `bundesliga`, `ligaPortugal` et `saudiProLeague`) :
 
 | Clé | Code ESPN | Pays |
 |---|---|---|
@@ -31,6 +31,14 @@ Clés livrées (les mêmes que l'API d'origine, plus `bundesliga`) :
 | `laliga` | `esp.1` | spain |
 | `serieA` | `ita.1` | italy |
 | `bundesliga` | `ger.1` | germany |
+| `ligaPortugal` | `por.1` | portugal |
+| `saudiProLeague` | `ksa.1` | saudi arabia |
+| `tacaPortugal` | `por.taca.portugal` | portugal (coupe, sans classement) |
+| `coppaItalia` | `ita.coppa_italia` | italy (coupe, sans classement) |
+| `dfbPokal` | `ger.dfb_pokal` | germany (coupe, sans classement) |
+| `copaDelRey` | `esp.copa_del_rey` | spain (coupe, sans classement) |
+| `faCup` | `eng.fa` | england (coupe, sans classement) |
+| `leagueCup` | `eng.league_cup` | england (Carabao Cup, sans classement) |
 
 Exemples :
 ```bash
@@ -90,17 +98,23 @@ curl -s "http://localhost/soccer/scores?tz=UTC"              # fuseau de startTi
 
 ```json
 {"date": "2026-10-20", "count": 9, "games": [
-  {"gameId": "401915399", "status": "in", "competition": "cl", "competitionName": "UEFA Champions League, League Phase",
-   "period": 1, "clock": "45'+1'", "detail": "45'+1'", "startTime": "21:00",
-   "home": {"abbreviation": "PSG", "score": "1", "color": "#011F68"}, "away": {"abbreviation": "BAR", "score": "0", "color": "#a50044"},
+  {"gameId": "401915399", "status": "in", "statusName": "STATUS_FIRST_HALF", "competition": "cl",
+   "competitionName": "UEFA Champions League, League Phase", "period": 1, "clock": "45'+1'", "detail": "45'+1'", "startTime": "21:00",
+   "home": {"abbreviation": "PSG", "displayName": "Paris Saint-Germain", "score": "1", "color": "#011F68"},
+   "away": {"abbreviation": "BAR", "displayName": "Barcelona", "score": "0", "color": "#a50044"},
    "goals": [{"minute": "38'", "team": "PSG", "player": "D. Doué", "type": "Goal", "penalty": false, "ownGoal": false}],
    "cards": [{"minute": "17'", "team": "BAR", "player": "J. Cancelo", "card": "yellow"}]},
-  {"gameId": "401915403", "status": "post", "competition": "cl", "competitionName": "UEFA Champions League, League Phase",
-   "startTime": "18:45", "home": {"abbreviation": "FEN", "score": "2", "color": "#ffff00"},
-   "away": {"abbreviation": "SLP", "score": "2", "color": "#ffffff"}, "goals": [...], "cards": [...]}
+  {"gameId": "401915403", "status": "post", "statusName": "STATUS_FULL_TIME", "competition": "cl",
+   "competitionName": "UEFA Champions League, League Phase", "startTime": "18:45",
+   "home": {"abbreviation": "FEN", "displayName": "Fenerbahce", "score": "2", "color": "#ffff00"},
+   "away": {"abbreviation": "SLP", "displayName": "Slavia Prague", "score": "2", "color": "#ffffff"}, "goals": [...], "cards": [...]}
 ]}
 ```
-- `status` : `pre`, `in`, `post` (ESPN). `competition` : clé de `competitions.json`, `null` pour les autres compétitions
+- `status` : `pre` (pas commencé), `in` (en cours), `post` (terminé). Un match **reporté** est `pre` (ESPN le marque
+  `post` alors qu'il n'a pas été joué) ; un match abandonné ou suspendu après le coup d'envoi reste `post`.
+  `statusName` : statut détaillé d'ESPN (`STATUS_SCHEDULED`, `STATUS_POSTPONED`, `STATUS_FULL_TIME`, `STATUS_FINAL_PEN`…).
+- Chaque équipe : `abbreviation`, `displayName` (nom complet ESPN), `score`, `color`.
+- `competition` : clé de `competitions.json`, `null` pour les autres compétitions
   (avec `?all=true`) ; `competitionName` : libellé ESPN.
 - Chaque équipe a sa couleur (`color`, `#rrggbb`), quel que soit le statut du match.
 - Match en direct : en plus, `period` (1 ou 2, puis prolongations), `clock` (`67'`, `45'+2'`), `detail` (`HT` à la mi-temps).
@@ -127,8 +141,10 @@ curl -s "http://localhost/soccer/eplStandings?team=arsenal"
    "wins": 4, "draws": 2, "losses": 1, "goalsFor": 14, "goalsAgainst": 9, "goalDifference": 5, "points": 14,
    "zone": {"description": "Champions League", "color": "#81D6AC"}}]}]}
 ```
-- Source : `site.api.espn.com/apis/v2/sports/soccer/{code}/standings`, rechargé en tâche de fond toutes les 30 min,
-  toutes les 5 min quand un match de la compétition est en cours (`SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES`).
+- Source : `site.api.espn.com/apis/v2/sports/soccer/{code}/standings`, rechargé en tâche de fond toutes les 120 min
+  (`SOCCER_PROXY_STANDINGS_REFRESH_MINUTES`), toutes les 10 min quand un match de la compétition est en cours
+  (`SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES`) : le passage à 10 min se fait dès le coup d'envoi, et une mise à jour
+  a lieu dans les 10 min qui suivent la fin du dernier match en cours, sans attendre les 120 min.
 - Ordre d'ESPN (par `rank`). `zone` : zone de qualification ou de relégation avec sa couleur ESPN (`null` sinon).
 - `color` : couleur de l'équipe, reprise de `/…Teams` (le classement ESPN n'en a pas).
 - `groups` : un groupe pour un championnat, la phase de ligue pour les coupes européennes, **aucun pour la Coupe de
@@ -141,6 +157,8 @@ curl -s "http://localhost/soccer/eplStandings?team=arsenal"
 {"key": "ligue1", "espnCode": "fra.1", "name": "Ligue 1", "country": "france"}
 ```
 `key` : lettres et chiffres, commence par une lettre. `country: null` pour une compétition internationale.
+`"standings": false` pour une coupe à élimination directe : pas de route `/{cle}Standings` (404) et pas d'appel
+ESPN pour un classement qui n'existe pas (dans `/soccer/health`, `standingsReady` vaut alors `null`).
 
 **`config/aliases.json`** — par identifiant d'équipe ESPN (visible dans `/…Teams`) :
 ```json
@@ -149,7 +167,8 @@ curl -s "http://localhost/soccer/eplStandings?team=arsenal"
 ```
 `name` sert seulement à la lecture du fichier. `country` (optionnel) force le pays de l'équipe. Le fichier livré
 reprend les alias publiés par l'API d'origine (Ligue 1, Ligue 2, Premier League, LaLiga, Serie A) ; les autres
-équipes (Bundesliga, coupes européennes) n'ont que l'alias automatique sans accents, à compléter si besoin.
+équipes (Bundesliga, Liga Portugal, Saudi Pro League, coupes européennes) n'ont que l'alias automatique sans
+accents, à compléter si besoin.
 
 Le dossier `config/` est monté en lecture seule dans le conteneur (`docker-compose.yml`) : après modification,
 `docker compose restart proxy` suffit (pas de reconstruction).
@@ -163,13 +182,14 @@ Le dossier `config/` est monté en lecture seule dans le conteneur (`docker-comp
 | `SOCCER_PROXY_TZ` | `Europe/Paris` | Fuseau qui définit « aujourd'hui » |
 | `SOCCER_PROXY_LIVE_REFRESH_SECONDS` | `20` | Rafraîchissement pendant un match (ou avant le coup d'envoi) |
 | `SOCCER_PROXY_PREMATCH_MINUTES` | `10` | Passage en rafraîchissement rapide avant le coup d'envoi |
-| `SOCCER_PROXY_IDLE_REFRESH_MINUTES` | `30` | Rafraîchissement complet de la fenêtre |
+| `SOCCER_PROXY_IDLE_REFRESH_MINUTES` | `60` | Rafraîchissement complet des matchs de la fenêtre, hors périodes de match |
+| `SOCCER_PROXY_STANDINGS_REFRESH_MINUTES` | `120` | Rafraîchissement des classements, hors périodes de match |
 | `SOCCER_PROXY_TEAMS_REFRESH_HOURS` | `24` | Rafraîchissement des équipes |
 | `SOCCER_PROXY_REQUEST_PAUSE_MS` | `1000` | Pause entre deux requêtes ESPN |
 | `SOCCER_PROXY_RETRY_BASE_SECONDS` | `30` | Premier délai de réessai après une erreur (doublé à chaque échec, max 30 min) |
 | `SOCCER_PROXY_SCORES_REFRESH_MINUTES` | `5` | `/scores` quand aucune compétition configurée ne joue |
 | `SOCCER_PROXY_UPCOMING_REFRESH_MINUTES` | `30` | `/upcoming` |
-| `SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES` | `5` | Classements pendant les matchs de la compétition (sinon 30 min) |
+| `SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES` | `10` | Classements pendant les matchs de la compétition (sinon 120 min) |
 | `SOCCER_PROXY_REQUESTS_PER_MINUTE` | `60` | Limite par IP et par route |
 | `SOCCER_PROXY_CONFIG_DIR` | `/app/config` | Dossier de `competitions.json` et `aliases.json` |
 
@@ -180,7 +200,7 @@ Le dossier `config/` est monté en lecture seule dans le conteneur (`docker-comp
 - **Plage de dates** : ESPN refuse aujourd'hui toute plage `dates=AAAAMMJJ-AAAAMMJJ` (HTTP 400 « Failed to get
   events endpoint »). Le proxy interroge donc **par mois** (`dates=AAAAMM`, deux mois en fin ou début de mois,
   fenêtre élargie d'un jour car les mois d'ESPN suivent l'heure américaine) et filtre de J-1 à J+14.
-- **Cadence** par compétition : toute la fenêtre toutes les 30 min ; dès qu'un match est en cours ou commence dans
+- **Cadence** par compétition : toute la fenêtre toutes les 60 min (classements : 120 min) ; dès qu'un match est en cours ou commence dans
   moins de 10 min, rafraîchissement **toutes les 20 s des seuls jours concernés** (`dates=AAAAMMJJ`, léger) ;
   équipes une fois par jour.
 - **Un seul appel ESPN à la fois**, avec une pause d'1 s entre deux appels. Démarrage complet en ~30 s.
@@ -213,6 +233,8 @@ curl -o psg.png http://localhost/soccer/logo/160.png
 
 - `--variant dark` : version du logo prévue pour un fond sombre ; `--force` : retélécharge les fichiers présents.
 - Une équipe présente dans plusieurs compétitions (PSG : ligue1, coupeDeFrance, cl) n'est téléchargée qu'une fois.
+- `index.json` est complété à chaque lancement : un lancement limité (`--competitions saudiProLeague`) garde les
+  autres équipes.
 - `soccer_logos/index.json` liste chaque équipe : `{"160": {"displayName": "Paris Saint-Germain", "abbreviation": "PSG", "competitions": ["ligue1", "coupeDeFrance", "cl"], "file": "160.png"}}`.
   `file` vaut `null` quand ESPN n'a pas de logo (surtout des clubs amateurs de Coupe de France).
 - Relancer le script après un changement de `competitions.json` ou en début de saison (promus, nouvelles équipes

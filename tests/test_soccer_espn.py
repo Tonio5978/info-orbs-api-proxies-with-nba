@@ -281,8 +281,22 @@ class DayScoreboardTest(unittest.TestCase):
         for side in ("home", "away"):
             self.assertRegex(done[side]["color"], r"^#[0-9A-Fa-f]{6}$")
             self.assertIsInstance(done[side]["score"], str)
-        self.assertEqual(list(done), ["gameId", "status", "competition", "competitionName", "startTime",
+        self.assertEqual(list(done), ["gameId", "status", "statusName", "competition", "competitionName", "startTime",
                                       "home", "away", "goals", "cards"])
+        self.assertEqual(list(done["home"]), ["abbreviation", "displayName", "score", "color"])
+        self.assertEqual((done["home"]["displayName"], done["statusName"]), ("Fenerbahce", "STATUS_FULL_TIME"))
+
+    def test_unplayed_matches_are_pre(self):
+        unplayed = {e["status"]["type"]["name"]: e for e in load("events_unplayed.json")["events"]}
+        postponed = espn.format_day_game(unplayed["STATUS_POSTPONED"], None, PARIS)
+        self.assertEqual((postponed["status"], postponed["statusName"]), ("pre", "STATUS_POSTPONED"))  # ESPN says 'post'
+        self.assertEqual(unplayed["STATUS_POSTPONED"]["status"]["type"]["state"], "post")
+        suspended = espn.format_day_game(unplayed["STATUS_SUSPENDED"], None, PARIS)
+        self.assertEqual(suspended["status"], "post")  # Kicked off, then suspended: it did start
+        abandoned = next(e for e in self.mixed if e["status"]["type"]["name"] == "STATUS_ABANDONED")
+        self.assertEqual(espn.format_day_game(abandoned, None, PARIS)["status"], "post")
+        for e in self.today + self.tomorrow:  # Normal matches keep ESPN's state
+            self.assertEqual(espn.format_day_game(e, None, PARIS)["status"], e["status"]["type"]["state"])
 
     def test_start_time_in_paris_24h(self):
         times = {g["gameId"]: g["startTime"] for g in self.payload(self.today)["games"]}

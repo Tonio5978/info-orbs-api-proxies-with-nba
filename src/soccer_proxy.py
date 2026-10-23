@@ -37,14 +37,15 @@ def load_settings() -> Settings:
         days_before=env_int("SOCCER_PROXY_DAYS_BEFORE", 1),
         days_after=env_int("SOCCER_PROXY_DAYS_AFTER", 14),
         live_seconds=env_int("SOCCER_PROXY_LIVE_REFRESH_SECONDS", 20),
-        idle_seconds=env_int("SOCCER_PROXY_IDLE_REFRESH_MINUTES", 30) * 60,
+        idle_seconds=env_int("SOCCER_PROXY_IDLE_REFRESH_MINUTES", 60) * 60,
+        standings_seconds=env_int("SOCCER_PROXY_STANDINGS_REFRESH_MINUTES", 120) * 60,
         prematch_minutes=env_int("SOCCER_PROXY_PREMATCH_MINUTES", 10),
         teams_seconds=env_int("SOCCER_PROXY_TEAMS_REFRESH_HOURS", 24) * 3600,
         request_pause_seconds=env_int("SOCCER_PROXY_REQUEST_PAUSE_MS", 1000) / 1000,
         retry_base_seconds=env_int("SOCCER_PROXY_RETRY_BASE_SECONDS", 30),
         scores_seconds=env_int("SOCCER_PROXY_SCORES_REFRESH_MINUTES", 5) * 60,
         upcoming_seconds=env_int("SOCCER_PROXY_UPCOMING_REFRESH_MINUTES", 30) * 60,
-        standings_live_seconds=env_int("SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES", 5) * 60,
+        standings_live_seconds=env_int("SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES", 10) * 60,
     )
 
 
@@ -163,5 +164,6 @@ for competition in COMPETITIONS:
                    path=f"/{competition['key']}UpcomingMatches")
     handle_request(app, logger, teams_endpoint(competition["key"]), methods=("GET",),
                    path=f"/{competition['key']}Teams")
-    handle_request(app, logger, standings_endpoint(competition["key"]), methods=("GET",),
-                   path=f"/{competition['key']}Standings")
+    if competition.get("standings", True):  # Knockout cups have no table
+        handle_request(app, logger, standings_endpoint(competition["key"]), methods=("GET",),
+                       path=f"/{competition['key']}Standings")

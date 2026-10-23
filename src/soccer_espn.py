@@ -210,13 +210,27 @@ def goals_and_cards(event: dict) -> tuple:
     return goals, cards
 
 
+def match_state(status: dict) -> Optional[str]:
+    """ESPN state, except that a match which never kicked off is 'pre'.
+
+    ESPN marks postponed (or cancelled) matches 'post' although they weren't played; they have no
+    period. Matches abandoned or suspended during play (period 1 or 2) stay 'post'.
+    """
+    status_type = status.get("type", {})
+    state = status_type.get("state")
+    if state == "post" and not status_type.get("completed") and not status.get("period"):
+        return "pre"
+    return state
+
+
 def format_day_game(event: dict, competition_key: Optional[str], tz: ZoneInfo) -> dict:
     """Match summary in the /nbadata/scores style: status, live period/clock, teams, goals and cards.
 
     Every team has its color ('#rrggbb'); live matches ('in') also get period, clock and detail ('HT' at half time).
+    `statusName` is ESPN's detailed status (STATUS_SCHEDULED, STATUS_POSTPONED, STATUS_FULL_TIME...).
     """
     status = event.get("status") or {}
-    state = status.get("type", {}).get("state")
+    state = match_state(status)
     competition = (event.get("competitions") or [{}])[0]
     side = {c.get("homeAway"): c for c in competition.get("competitors", [])}
 
@@ -224,12 +238,13 @@ def format_day_game(event: dict, competition_key: Optional[str], tz: ZoneInfo) -
         info = c.get("team", {})
         return {
             "abbreviation": info.get("abbreviation"),
+            "displayName": info.get("displayName"),  # e.g. 'Paris Saint-Germain'
             "score": _score(c.get("score")),
             "color": f"#{_strip_hash(info['color'])}" if info.get("color") else None,
         }
 
-    game = {"gameId": event.get("id"), "status": state, "competition": competition_key,
-            "competitionName": competition.get("altGameNote")}
+    game = {"gameId": event.get("id"), "status": state, "statusName": status.get("type", {}).get("name"),
+            "competition": competition_key, "competitionName": competition.get("altGameNote")}
     if state == "in":
         game["period"] = status.get("period")
         game["clock"] = status.get("displayClock")

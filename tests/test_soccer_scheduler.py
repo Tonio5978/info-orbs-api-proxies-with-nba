@@ -128,9 +128,9 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         scheduler, clock, fake = make()
         await run_until_idle(scheduler, clock)
         ligue1, cl = scheduler.competitions["ligue1"], scheduler.competitions["cl"]
-        # Champions League is live: every 20 s. Ligue 1: every 30 min, live refresh 10 min before the next kickoff
+        # Champions League is live: every 20 s. Ligue 1: every 60 min, live refresh 10 min before the next kickoff
         self.assertEqual((cl.next_live_at - clock()).total_seconds(), 20)
-        self.assertAlmostEqual((ligue1.next_full_at - clock()).total_seconds(), 1800, delta=10)
+        self.assertAlmostEqual((ligue1.next_full_at - clock()).total_seconds(), 3600, delta=10)  # 60 min outside live
         self.assertEqual(ligue1.next_live_at, datetime(2026, 10, 16, 18, 35, tzinfo=timezone.utc))
         self.assertTrue(scheduler.health()["competitions"]["cl"]["live"])
         self.assertFalse(scheduler.health()["competitions"]["ligue1"]["live"])
@@ -179,7 +179,7 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         fake.fail.clear()
         clock.now = ligue1.next_full_at
         await scheduler.run_job("full", ligue1)
-        self.assertEqual((ligue1.full_failures, (ligue1.next_full_at - clock()).total_seconds()), (0, 1800))
+        self.assertEqual((ligue1.full_failures, (ligue1.next_full_at - clock()).total_seconds()), (0, 3600))
 
     async def test_unexpected_body_is_a_failure(self):
         scheduler, clock, fake = make()
@@ -242,10 +242,36 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         await run_until_idle(scheduler, clock)
         ligue1, cl = scheduler.competitions["ligue1"], scheduler.competitions["cl"]
         self.assertTrue(fake.urls[-2].endswith("/apis/v2/sports/soccer/fra.1/standings"))
-        self.assertEqual((ligue1.next_standings_at - clock()).total_seconds(), 1800)
-        self.assertEqual((cl.next_standings_at - clock()).total_seconds(), 300)  # CL match in progress
+        self.assertEqual((ligue1.next_standings_at - clock()).total_seconds(), 7200)  # 120 min, no live match
+        self.assertEqual((cl.next_standings_at - clock()).total_seconds(), 600)  # CL match in progress: 10 min
         self.assertEqual(scheduler.team_colors("ligue1")["160"], "#011F68")  # PSG, from /teams
         self.assertTrue(scheduler.health()["competitions"]["ligue1"]["standingsReady"])
+
+    async def test_standings_follow_kickoff_and_final_whistle(self):
+        scheduler, clock, fake = make()
+        await run_until_idle(scheduler, clock)
+        ligue1 = scheduler.competitions["ligue1"]
+        self.assertEqual((ligue1.next_standings_at - clock()).total_seconds(), 7200)
+        # Toulouse - Le Mans kicks off: the next live update brings the table forward to 10 min
+        match = next(e for e in fake.events["fra.1"] if e["id"] == "401876437")
+        clock.now = datetime(2026, 10, 16, 18, 20, tzinfo=timezone.utc)  # 25 min before kickoff
+        await scheduler.run_job("standings", ligue1)  # Overdue after the jump in time
+        self.assertEqual((ligue1.next_standings_at - clock()).total_seconds(), 7200)
+        clock.now = datetime(2026, 10, 16, 18, 50, tzinfo=timezone.utc)
+        match["status"]["type"].update(state="in", name="STATUS_FIRST_HALF", completed=False)
+        await scheduler.run_job("live", ligue1)
+        self.assertEqual((ligue1.next_standings_at - clock()).total_seconds(), 600)
+        await scheduler.run_job("standings", ligue1)
+        self.assertEqual((ligue1.next_standings_at - clock()).total_seconds(), 600)  # Still live
+        # Final whistle: the 120-min cadence would resume, but the table is refreshed within 10 min first
+        clock.now += timedelta(minutes=5)
+        match["status"]["type"].update(state="post", name="STATUS_FULL_TIME", completed=True)
+        await scheduler.run_job("standings", ligue1)  # Last refresh while the match was still seen live
+        await scheduler.run_job("live", ligue1)
+        self.assertLessEqual((ligue1.next_standings_at - clock()).total_seconds(), 600)
+        clock.now = ligue1.next_standings_at
+        await scheduler.run_job("standings", ligue1)
+        self.assertEqual((ligue1.next_standings_at - clock()).total_seconds(), 7200)  # Back to 120 min
 
     async def test_standings_failure_keeps_last_table(self):
         scheduler, clock, fake = make()
@@ -263,6 +289,16 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         await scheduler.run_job("standings", scheduler.competitions["coupeDeFrance"])
         self.assertIsNotNone(scheduler.competitions["coupeDeFrance"].standings_response)
         self.assertIsNone(scheduler.competitions["coupeDeFrance"].last_error)
+
+    async def test_cup_without_standings_never_asks_for_a_table(self):
+        cup = {"key": "faCup", "espnCode": "uefa.champions", "country": "england", "standings": False}
+        scheduler, clock, fake = make(competitions=[COMPETITIONS[0], cup])
+        await run_until_idle(scheduler, clock)
+        self.assertEqual([u for u in fake.urls if u.endswith("/standings") and "uefa.champions" in u], [])
+        self.assertIsNone(scheduler.competitions["faCup"].next_standings_at)
+        health = scheduler.health()
+        self.assertIsNone(health["competitions"]["faCup"]["standingsReady"])
+        self.assertEqual(health["status"], "ok")
 
     async def test_one_request_at_a_time_with_pause(self):
         scheduler, clock, fake = make(request_pause_seconds=1.5)

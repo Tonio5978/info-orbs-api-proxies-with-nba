@@ -120,7 +120,18 @@ def main() -> int:
                 failed.append(f"{name} ({team_id}) : {e}")
                 index[team_id]["file"] = None if not dest.exists() else dest.name
 
-        (args.output_dir / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1), encoding="utf-8")
+        # Merge with the existing index, so a run on a few competitions (--competitions) keeps the other teams
+        index_path = args.output_dir / "index.json"
+        try:
+            merged = json.loads(index_path.read_text(encoding="utf-8")) if index_path.exists() else {}
+        except ValueError:
+            merged = {}
+        for team_id, entry in index.items():
+            previous = merged.get(team_id, {})
+            known = previous.get("competitions", [])
+            entry["competitions"] = known + [c for c in entry["competitions"] if c not in known]
+            merged[team_id] = entry
+        index_path.write_text(json.dumps(merged, ensure_ascii=False, indent=1), encoding="utf-8")
 
     print(f"\n  Téléchargés : {downloaded}\n  Déjà présents : {skipped}\n  Sans logo chez ESPN : {len(no_logo)}"
           f"\n  Échecs : {len(failed)}")
