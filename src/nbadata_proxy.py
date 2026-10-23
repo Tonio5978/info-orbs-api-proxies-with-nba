@@ -278,10 +278,11 @@ async def proxy_endpoint(request: Request):
     return transform_data({**result, "liveGame": build_live_game(get_scoreboard(), team_id)}, cached=cached)
 
 
-def format_scoreboard_game(event: dict, tz) -> dict:
+def format_scoreboard_game(event: dict, tz, boxscores: Optional[dict] = None) -> dict:
     """Game summary: ESPN status ('pre', 'in', 'post'), start time and both teams' scores and colors.
 
     Live games ('in') add the current period, the clock (time remaining in the period) and the last play.
+    Finished games ('post') add each team's top 5 scorers from the box score (null until it's loaded).
     """
     competitors = (event.get("competitions") or [{}])[0].get("competitors", [])
     side = {c.get("homeAway"): c for c in competitors}
@@ -289,13 +290,18 @@ def format_scoreboard_game(event: dict, tz) -> dict:
     state = status.get("type", {}).get("state", "N/A")
     is_live = state == "in"
 
+    box = (boxscores or {}).get(str(event.get("id")))
+
     def team(c: dict) -> dict:
         info = c.get("team", {})
-        return {
+        summary = {
             "abbreviation": info.get("abbreviation", "N/A"),
             "score": get_score_value(c),
             "color": f"#{info['color']}" if info.get("color") else None,  # ESPN gives hex without '#'
         }
+        if state == "post":
+            summary["topScorers"] = box["teams"].get(str(info.get("id"))) if box else None
+        return summary
 
     game = {"gameId": event.get("id", "N/A"), "status": state}
     if is_live:
@@ -324,7 +330,7 @@ def build_scoreboard_response(board, request: Request):
         events = [e for e in events
                   if any(c.get("team", {}).get("id") == team_id
                          for c in (e.get("competitions") or [{}])[0].get("competitors", []))]
-    games = [format_scoreboard_game(e, tz) for e in events]
+    games = [format_scoreboard_game(e, tz, scheduler.boxscores) for e in events]
     return {"date": board.date, "count": len(games), "games": games, "proxy-info": proxy_info(True)}
 
 

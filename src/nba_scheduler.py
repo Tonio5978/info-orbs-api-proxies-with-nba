@@ -6,7 +6,9 @@ liveGame part of /nbadata/proxy read the boards kept here.
   `idle_seconds`, but always woken up `prematch_minutes` before the next tip-off (today's or tomorrow's board),
   so a game is never missed at its start;
 - upcoming: every `idle_seconds`, and right away when the ESPN day rolls over;
-- standings: every `idle_seconds`, every `standings_live_seconds` while a game is live.
+- standings: every `idle_seconds`, every `standings_live_seconds` while a game is live;
+- box scores of the finished games of the current day (game summary by game id), fetched with the scores
+  refresh as soon as a game is final, then again every `idle_seconds` while the game is on the board.
 Failures keep the last valid board and are retried with an increasing delay.
 """
 import asyncio
@@ -20,6 +22,8 @@ from .sports_common import get_status_type, parse_utc_date
 
 BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/"
 STANDINGS_URL = "https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings"
+SUMMARY_URL = BASE_URL + "summary?event={game_id}"
+TOP_SCORERS = 5
 LATE_TIPOFF_GRACE = timedelta(hours=3)  # A game still 'pre' this long after its tip-off time is considered not played
 
 
@@ -55,6 +59,57 @@ def needs_live_refresh(event: dict, now: datetime, prematch_minutes: int) -> boo
     return when is not None and now - LATE_TIPOFF_GRACE <= when <= now + timedelta(minutes=prematch_minutes)
 
 
+def _int(value):
+    """'34' -> 34, '+7' -> 7, '' or '--' -> None"""
+    try:
+        return int(str(value).replace("+", ""))
+    except (TypeError, ValueError):
+        return None
+
+
+def _made_attempted(value):
+    """'8-16' -> (8, 16)"""
+    made, _, attempted = str(value or "").partition("-")
+    return _int(made), _int(attempted)
+
+
+def top_scorers(summary: dict, limit: int = TOP_SCORERS) -> Dict[str, List[dict]]:
+    """Top scorers of each team from an ESPN game summary: {team id: [player stats]}.
+
+    Players who did not play are left out; ties on points are broken by minutes played.
+    """
+    teams = {}
+    for team in (summary.get("boxscore") or {}).get("players", []):
+        group = (team.get("statistics") or [{}])[0]
+        keys = group.get("keys") or []
+        players = []
+        for athlete in group.get("athletes", []):
+            if athlete.get("didNotPlay") or not athlete.get("stats"):
+                continue
+            stats = dict(zip(keys, athlete["stats"]))
+            fg = _made_attempted(stats.get("fieldGoalsMade-fieldGoalsAttempted"))
+            three = _made_attempted(stats.get("threePointFieldGoalsMade-threePointFieldGoalsAttempted"))
+            ft = _made_attempted(stats.get("freeThrowsMade-freeThrowsAttempted"))
+            info = athlete.get("athlete", {})
+            players.append({
+                "name": info.get("shortName") or info.get("displayName"),
+                "jersey": info.get("jersey"),
+                "minutes": _int(stats.get("minutes")),
+                "points": _int(stats.get("points")),
+                "fieldGoalsMade": fg[0], "fieldGoalsAttempted": fg[1],
+                "threePointsMade": three[0], "threePointsAttempted": three[1],
+                "freeThrowsMade": ft[0], "freeThrowsAttempted": ft[1],
+                "assists": _int(stats.get("assists")),
+                "rebounds": _int(stats.get("rebounds")),
+                "offensiveRebounds": _int(stats.get("offensiveRebounds")),
+                "blocks": _int(stats.get("blocks")),
+                "plusMinus": _int(stats.get("plusMinus")),
+            })
+        players.sort(key=lambda p: (-(p["points"] or 0), -(p["minutes"] or 0)))
+        teams[str(team.get("team", {}).get("id"))] = players[:limit]
+    return teams
+
+
 class NbaScoreboardScheduler:
     def __init__(self, fetch_json: Callable[[str], Awaitable[dict]], logger: logging.Logger,
                  live_seconds: int = 10, idle_seconds: int = 30 * 60, prematch_minutes: int = 10,
@@ -73,6 +128,8 @@ class NbaScoreboardScheduler:
         now = clock()
         self.boards: Dict[str, Board] = {name: Board(name, next_at=now) for name in ("scores", "upcoming", "standings")}
         self.requests_made = 0
+        # Top scorers of the finished games of the current day: {game id: {"teams": {team id: [...]}, "fetched_at": ...}}
+        self.boxscores: Dict[str, dict] = {}
 
     # ── ESPN ───────────────────────────────────────────────────────────────────
 
@@ -92,6 +149,28 @@ class NbaScoreboardScheduler:
         if board.date and day != board.date:
             self.boards["upcoming"].next_at = self.clock()  # New ESPN day: tomorrow changed too
         board.date, board.events, board.updated_at = day, data["events"], self.clock()
+        await self.refresh_boxscores()
+
+    async def refresh_boxscores(self):
+        """Box scores of the current day's final games (by game id); one failing game doesn't stop the others."""
+        events = self.boards["scores"].events or []
+        finished = [str(e.get("id")) for e in events if get_status_type(e).get("state") == "post"]
+        for game_id in list(self.boxscores):
+            if game_id not in finished:
+                del self.boxscores[game_id]
+        now = self.clock()
+        for game_id in finished:
+            known = self.boxscores.get(game_id)
+            if known and (now - known["fetched_at"]).total_seconds() < self.idle_seconds:
+                continue
+            try:
+                self.requests_made += 1
+                summary = await self.fetch_json(SUMMARY_URL.format(game_id=game_id))
+                if not isinstance(summary, dict) or "boxscore" not in summary:
+                    raise ValueError("unexpected summary response")
+                self.boxscores[game_id] = {"teams": top_scorers(summary), "fetched_at": self.clock()}
+            except Exception as e:  # Keep the previous box score (if any) and retry with the next scores refresh
+                self.logger.error(f"NBA box score {game_id} failed: {type(e).__name__}: {getattr(e, 'detail', e)}")
 
     async def refresh_upcoming(self):
         current = self.boards["scores"].date
@@ -187,4 +266,5 @@ class NbaScoreboardScheduler:
                    "lastError": b.last_error, "lastErrorAt": iso(b.last_error_at)}
             for name, b in self.boards.items()
         }
-        return {"live": self.is_live(now), "espnRequests": self.requests_made, "scoreboards": boards}
+        return {"live": self.is_live(now), "espnRequests": self.requests_made, "scoreboards": boards,
+                "boxScores": len(self.boxscores)}

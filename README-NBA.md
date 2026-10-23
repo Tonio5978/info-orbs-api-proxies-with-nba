@@ -182,6 +182,19 @@ quel que soit le statut du match.
 aux États-Unis commence le lendemain matin en heure de Paris (`4:00 AM`), le champ ne contient que l'heure.
 Les matchs sont triés par heure de début.
 
+**Meilleurs marqueurs des matchs terminés** (`post`, `/nbadata/scores` uniquement) : chaque équipe reçoit
+`topScorers`, ses 5 meilleurs marqueurs d'après la feuille de match ESPN du match (`summary?event=<gameId>`) :
+```json
+"home": {"abbreviation": "PHI", "score": "114", "color": "#1d428a", "topScorers": [
+  {"name": "T. Maxey", "jersey": "0", "minutes": 42, "points": 32, "fieldGoalsMade": 12, "fieldGoalsAttempted": 23,
+   "threePointsMade": 2, "threePointsAttempted": 7, "freeThrowsMade": 6, "freeThrowsAttempted": 8,
+   "assists": 6, "rebounds": 3, "offensiveRebounds": 1, "blocks": 0, "plusMinus": 19}, ...]}
+```
+- Classés par points (à égalité, par minutes jouées) ; les joueurs qui n'ont pas joué sont exclus.
+- `topScorers` vaut `null` tant que la feuille de match n'est pas encore chargée (quelques secondes après la fin
+  du match) ; elle est chargée en tâche de fond dès que le match est terminé, puis rechargée toutes les 30 min tant
+  que le match reste dans la journée ESPN (corrections de statistiques).
+
 **Rafraîchissement** : comme pour le football, un planificateur interne interroge ESPN en tâche de fond ; les
 clients ne déclenchent aucun appel ESPN pour `/scores`, `/upcoming` et le `liveGame` de `/proxy`.
 - pendant un match (et à partir de 10 min avant le coup d'envoi) : **toutes les 10 s** ;
