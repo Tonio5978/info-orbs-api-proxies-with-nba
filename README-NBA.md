@@ -165,7 +165,8 @@ donc le matin en Europe `/scores` montre encore les résultats de la nuit. `/upc
      "home": {"abbreviation": "DEN", "score": "97", "color": "#0e2240"}, "away": {"abbreviation": "UTAH", "score": "109", "color": "#4e008e"}},
     {"gameId": "401918010", "status": "in", "period": "Q3", "clock": "5:12", "detail": "5:12 - 3rd Quarter",
      "lastPlay": "Jayson Tatum defensive rebound", "startTime": "7:00 PM",
-     "home": {"abbreviation": "LAC", "score": "88", "color": "#12173f"}, "away": {"abbreviation": "GS", "score": "85", "color": "#fdb927"}}
+     "home": {"abbreviation": "LAC", "displayName": "LA Clippers", "score": "88", "color": "#12173f"},
+     "away": {"abbreviation": "GS", "displayName": "Golden State Warriors", "score": "85", "color": "#fdb927"}}
   ],
   "proxy-info": {"cachedResponse": false, "status_code": 200, "timestamp": "2026-10-05T14:38:04.183521"}
 }
@@ -185,7 +186,7 @@ Les matchs sont triés par heure de début.
 **Meilleurs marqueurs des matchs terminés** (`post`, `/nbadata/scores` uniquement) : chaque équipe reçoit
 `topScorers`, ses 5 meilleurs marqueurs d'après la feuille de match ESPN du match (`summary?event=<gameId>`) :
 ```json
-"home": {"abbreviation": "PHI", "score": "114", "color": "#1d428a", "topScorers": [
+"home": {"abbreviation": "PHI", "displayName": "Philadelphia 76ers", "score": "114", "color": "#1d428a", "topScorers": [
   {"name": "T. Maxey", "jersey": "0", "minutes": 42, "points": 32, "fieldGoalsMade": 12, "fieldGoalsAttempted": 23,
    "threePointsMade": 2, "threePointsAttempted": 7, "freeThrowsMade": 6, "freeThrowsAttempted": 8,
    "assists": 6, "rebounds": 3, "offensiveRebounds": 1, "blocks": 0, "plusMinus": 19}, ...]}

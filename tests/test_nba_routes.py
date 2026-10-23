@@ -36,7 +36,7 @@ class NbaRoutesTest(unittest.TestCase):
         self.assertEqual(live["lastPlay"], "Jayson Tatum defensive rebound")
         for side in ("home", "away"):
             self.assertRegex(live[side]["color"], r"^#[0-9A-Fa-f]{6}$")  # Colors also during live games
-            self.assertEqual(list(live[side]), ["abbreviation", "score", "color"])
+            self.assertEqual(list(live[side]), ["abbreviation", "displayName", "score", "color"])
         scheduled = next(g for g in body["games"] if g["status"] == "pre")
         self.assertTrue(scheduled["home"]["color"].startswith("#"))
         self.assertIn("proxy-info", body)
@@ -45,6 +45,7 @@ class NbaRoutesTest(unittest.TestCase):
         body = self.client.get("/upcoming?team=LAL&tz=Europe/Paris").json()
         self.assertEqual((body["date"], body["count"]), ("2026-10-21", 1))
         self.assertEqual(body["games"][0]["startTime"], "4:00 AM")  # GS @ LAL, 02:00Z
+        self.assertEqual(body["games"][0]["home"]["displayName"], "Los Angeles Lakers")
 
     def test_not_loaded_yet(self):
         nbadata_proxy.scheduler.boards["upcoming"].events = None

@@ -131,7 +131,8 @@ class ScoresRouteTest(unittest.TestCase):
         self.assertEqual(cle_phi["status"], "post")
         for side in ("home", "away"):
             self.assertEqual(len(cle_phi[side]["topScorers"]), 5)
-            self.assertEqual(list(cle_phi[side]), ["abbreviation", "score", "color", "topScorers"])
+            self.assertEqual(list(cle_phi[side]), ["abbreviation", "displayName", "score", "color", "topScorers"])
+        self.assertEqual((cle_phi["home"]["displayName"], cle_phi["away"]["displayName"]), ("Philadelphia 76ers", "Cleveland Cavaliers"))
         self.assertEqual([p["name"] for p in cle_phi["home"]["topScorers"]][:2], ["T. Maxey", "J. Embiid"])  # PHI: 32 and 24 pts
         self.assertIsNone(games["401909094"]["home"]["topScorers"])  # Box score not loaded yet
 

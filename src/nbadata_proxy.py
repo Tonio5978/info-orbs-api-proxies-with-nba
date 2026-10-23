@@ -296,6 +296,7 @@ def format_scoreboard_game(event: dict, tz, boxscores: Optional[dict] = None) ->
         info = c.get("team", {})
         summary = {
             "abbreviation": info.get("abbreviation", "N/A"),
+            "displayName": info.get("displayName"),  # e.g. 'Philadelphia 76ers'
             "score": get_score_value(c),
             "color": f"#{info['color']}" if info.get("color") else None,  # ESPN gives hex without '#'
         }
