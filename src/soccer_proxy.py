@@ -6,6 +6,7 @@ For each competition of config/competitions.json:
   GET /{key}Standings        league table(s), with qualification/relegation zones
   GET /scores                all matches of the current ESPN day (configured competitions, ?all=true for every one)
   GET /upcoming              matches of the next day
+  GET /lastMatches           matches of the previous day
 Data comes from a background scheduler (soccer_scheduler.py): requests only read memory.
 """
 import json
@@ -45,6 +46,7 @@ def load_settings() -> Settings:
         retry_base_seconds=env_int("SOCCER_PROXY_RETRY_BASE_SECONDS", 30),
         scores_seconds=env_int("SOCCER_PROXY_SCORES_REFRESH_MINUTES", 5) * 60,
         upcoming_seconds=env_int("SOCCER_PROXY_UPCOMING_REFRESH_MINUTES", 30) * 60,
+        last_seconds=env_int("SOCCER_PROXY_LAST_REFRESH_MINUTES", 60) * 60,
         standings_live_seconds=env_int("SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES", 10) * 60,
     )
 
@@ -87,7 +89,8 @@ app = create_app(
         f"Refresh: {SETTINGS.live_seconds}s when live (or kickoff within {SETTINGS.prematch_minutes} min), "
         f"{SETTINGS.idle_seconds // 60} min otherwise, teams every {SETTINGS.teams_seconds // 3600} h",
         f"/scores: every {SETTINGS.live_seconds}s when a configured competition is live, "
-        f"{SETTINGS.scores_seconds // 60} min otherwise; /upcoming: {SETTINGS.upcoming_seconds // 60} min",
+        f"{SETTINGS.scores_seconds // 60} min otherwise; /upcoming: {SETTINGS.upcoming_seconds // 60} min; "
+        f"/lastMatches: {SETTINGS.last_seconds // 60} min",
         f"ESPN requests: one at a time, {SETTINGS.request_pause_seconds:g}s pause",
     ],
     background=scheduler.run,
@@ -158,6 +161,7 @@ def day_endpoint(name: str) -> Callable:
 
 handle_request(app, logger, day_endpoint("scores"), methods=("GET",), path="/scores")
 handle_request(app, logger, day_endpoint("upcoming"), methods=("GET",), path="/upcoming")
+handle_request(app, logger, day_endpoint("last"), methods=("GET",), path="/lastMatches")
 
 for competition in COMPETITIONS:
     handle_request(app, logger, matches_endpoint(competition["key"]), methods=("GET",),

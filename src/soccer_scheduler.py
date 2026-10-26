@@ -8,7 +8,9 @@ Clients never trigger ESPN calls: they read the payloads prepared here. Each com
   brought forward when a match kicks off and once more right after the competition's last live match ends).
 Two more jobs fill the day scoreboards of /scores and /upcoming from ESPN's all-competitions scoreboard:
 - scores: the current ESPN day, every `live_seconds` while a configured competition is playing, else `scores_seconds`;
-- upcoming: the day after, every `upcoming_seconds`.
+- upcoming: the day after, every `upcoming_seconds`;
+- last: the day before (ESPN's soccer day rolls over during the night), every `last_seconds`.
+Both are reloaded right away when the ESPN day changes.
 Jobs run one at a time, with a pause between two ESPN requests. A failed job keeps the last valid
 data and is retried with an increasing delay.
 """
@@ -44,6 +46,7 @@ class Settings:
     scores_seconds: int = 5 * 60
     standings_live_seconds: int = 10 * 60
     upcoming_seconds: int = 30 * 60
+    last_seconds: int = 60 * 60
 
 
 @dataclass
@@ -128,7 +131,7 @@ class SoccerScheduler:
             state.next_full_at = now
             state.next_teams_at = now
             state.next_standings_at = now if state.has_standings else None
-        self.boards: Dict[str, DayBoard] = {name: DayBoard(name, next_at=now) for name in ("scores", "upcoming")}
+        self.boards: Dict[str, DayBoard] = {name: DayBoard(name, next_at=now) for name in ("scores", "upcoming", "last")}
         self._request_lock = asyncio.Lock()
         self._last_request_end: Optional[float] = None
         self.requests_made = 0
@@ -230,19 +233,23 @@ class SoccerScheduler:
         day = (data.get("day") or {}).get("date")
         if not day:  # ESPN days follow US Eastern time
             day = self.clock().astimezone(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+        if board.date and day != board.date:  # New ESPN day: yesterday and tomorrow changed too
+            for name in ("upcoming", "last"):
+                self.boards[name].next_at = self.clock()
         board.date, board.events, board.updated_at = day, data["events"], self.clock()
 
-    async def refresh_upcoming(self, board: DayBoard):
+    async def refresh_relative_day(self, board: DayBoard, days: int):
+        """The day `days` away from the current ESPN day (+1 for /upcoming, -1 for /lastMatches)."""
         current = self.boards["scores"].date
         if not current:
             raise ValueError("current ESPN day not known yet")
-        next_day = (datetime.strptime(current, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
-        data = await self.fetch_all_scoreboard(next_day)
-        board.date, board.events, board.updated_at = next_day, data["events"], self.clock()
+        day = (datetime.strptime(current, "%Y-%m-%d") + timedelta(days=days)).strftime("%Y-%m-%d")
+        data = await self.fetch_all_scoreboard(day)
+        board.date, board.events, board.updated_at = day, data["events"], self.clock()
 
-    def scores_live(self, now: datetime) -> bool:
-        """True if a match of a configured competition is live or about to start in the current day."""
-        board, keys = self.boards["scores"], self.league_keys()
+    def scores_live(self, now: datetime, name: str = "scores") -> bool:
+        """True if a match of a configured competition is live or about to start on that day's board."""
+        board, keys = self.boards[name], self.league_keys()
         return any(espn.needs_live_refresh(e, now, self.settings.prematch_minutes)
                    for e in board.events or [] if espn.league_id_from_uid(e.get("uid")) in keys)
 
@@ -299,11 +306,12 @@ class SoccerScheduler:
                 jobs.append((state.next_standings_at, 5, order, "standings", state))
         jobs.append((self.boards["scores"].next_at, 3, 0, "scores", self.boards["scores"]))
         jobs.append((self.boards["upcoming"].next_at, 4, 0, "upcoming", self.boards["upcoming"]))
+        jobs.append((self.boards["last"].next_at, 4, 1, "last", self.boards["last"]))
         due, _, _, kind, state = min(jobs, key=lambda j: j[:3])
         return due, kind, state
 
     async def run_job(self, kind: str, state):
-        if kind in ("scores", "upcoming"):
+        if kind in ("scores", "upcoming", "last"):
             return await self.run_board_job(kind, state)
         s = self.settings
         try:
@@ -353,8 +361,13 @@ class SoccerScheduler:
                 await self.refresh_scores(board)
                 now = self.clock()
                 board.next_at = now + timedelta(seconds=s.live_seconds if self.scores_live(now) else s.scores_seconds)
+            elif kind == "last":
+                await self.refresh_relative_day(board, -1)
+                now = self.clock()
+                # A late match of yesterday (after midnight) may still be playing: follow it live
+                board.next_at = now + timedelta(seconds=s.live_seconds if self.scores_live(now, "last") else s.last_seconds)
             else:
-                await self.refresh_upcoming(board)
+                await self.refresh_relative_day(board, 1)
                 board.next_at = self.clock() + timedelta(seconds=s.upcoming_seconds)
             board.failures = 0
         except Exception as e:  # Keep the last valid day, log and retry later

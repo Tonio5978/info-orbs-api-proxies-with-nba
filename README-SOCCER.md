@@ -15,6 +15,7 @@ Pour chaque compétition de `config/competitions.json` (clé `{cle}`) :
 | `GET /soccer/{cle}Standings` | Classement de la compétition (`?team=` pour une équipe) |
 | `GET /soccer/scores` | Tous les matchs de la journée ESPN en cours, toutes compétitions configurées (terminés, en direct, à venir) |
 | `GET /soccer/upcoming` | Les matchs du lendemain |
+| `GET /soccer/lastMatches` | Les matchs de la veille (résultats de la journée précédente) |
 | `GET /soccer/health` | État du cache par compétition et des deux journées |
 
 Clés livrées (les mêmes que l'API d'origine, plus `bundesliga`, `ligaPortugal` et `saudiProLeague`) :
@@ -83,10 +84,14 @@ Les routes sont sensibles à la casse (`/soccer/serieAUpcomingMatches`, pas `ser
 - `country` : pays de la compétition ; pour les coupes européennes, pays du championnat configuré où joue l'équipe
   (PSG → `france`), sinon `country` de `aliases.json`, sinon `null` (jamais deviné).
 
-## Scores du jour et matchs du lendemain (`/soccer/scores`, `/soccer/upcoming`)
+## Scores du jour, de la veille et du lendemain (`/soccer/scores`, `/soccer/lastMatches`, `/soccer/upcoming`)
 
 Même principe que `/nbadata/scores`, à partir du scoreboard ESPN toutes compétitions
-(`soccer/all/scoreboard`) : journée ESPN en cours pour `/scores`, jour suivant pour `/upcoming`.
+(`soccer/all/scoreboard`) : journée ESPN en cours pour `/scores`, jour précédent pour `/lastMatches`, jour suivant
+pour `/upcoming`. Mêmes paramètres et même format pour les trois routes.
+
+Pour le football, ESPN passe à la journée suivante **pendant la nuit** : le matin, `/scores` ne contient plus les
+matchs de la veille, qui sont sur `/lastMatches`.
 
 ```bash
 curl -s http://localhost/soccer/scores                       # compétitions de competitions.json uniquement
@@ -126,7 +131,9 @@ curl -s "http://localhost/soccer/scores?tz=UTC"              # fuseau de startTi
   (carton à un membre du staff).
 - ESPN n'a pas de « dernière action » textuelle en football (`situation.lastPlay`, présent en NBA, vaut toujours `null`).
 - Rafraîchissement : `/scores` toutes les 20 s quand un match d'une compétition configurée est en cours ou va commencer,
-  sinon toutes les 5 min ; `/upcoming` toutes les 30 min. Les matchs des autres compétitions (`?all=true`) peuvent donc
+  sinon toutes les 5 min ; `/upcoming` toutes les 30 min ; `/lastMatches` toutes les 60 min (toutes les 20 s si un
+  match de la veille, commencé avant minuit, est encore en cours). Au changement de journée ESPN, `/upcoming` et
+  `/lastMatches` sont rechargés immédiatement. Les matchs des autres compétitions (`?all=true`) peuvent donc
   avoir jusqu'à 5 min de retard quand aucune de vos compétitions ne joue.
 
 ## Classements (`/soccer/{cle}Standings`)
@@ -189,6 +196,7 @@ Le dossier `config/` est monté en lecture seule dans le conteneur (`docker-comp
 | `SOCCER_PROXY_RETRY_BASE_SECONDS` | `30` | Premier délai de réessai après une erreur (doublé à chaque échec, max 30 min) |
 | `SOCCER_PROXY_SCORES_REFRESH_MINUTES` | `5` | `/scores` quand aucune compétition configurée ne joue |
 | `SOCCER_PROXY_UPCOMING_REFRESH_MINUTES` | `30` | `/upcoming` |
+| `SOCCER_PROXY_LAST_REFRESH_MINUTES` | `60` | `/lastMatches` (matchs de la veille) |
 | `SOCCER_PROXY_STANDINGS_LIVE_REFRESH_MINUTES` | `10` | Classements pendant les matchs de la compétition (sinon 120 min) |
 | `SOCCER_PROXY_REQUESTS_PER_MINUTE` | `60` | Limite par IP et par route |
 | `SOCCER_PROXY_CONFIG_DIR` | `/app/config` | Dossier de `competitions.json` et `aliases.json` |

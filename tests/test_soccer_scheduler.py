@@ -114,7 +114,8 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         await run_until_idle(scheduler, clock)
         paths = [urlsplit(u).path.split("/")[-1] + "?" + urlsplit(u).query.split("&")[0] for u in fake.urls]
         self.assertEqual(paths, ["scoreboard?dates=202610", "scoreboard?dates=202610", "teams?", "teams?",
-                                 "scoreboard?limit=1000", "scoreboard?dates=20261015",  # Then /scores and /upcoming
+                                 "scoreboard?limit=1000", "scoreboard?dates=20261015",  # Then /scores, /upcoming
+                                 "scoreboard?dates=20261013",                           # and /lastMatches
                                  "standings?", "standings?"])
         ligue1, cl = scheduler.competitions["ligue1"], scheduler.competitions["cl"]
         self.assertEqual([e["id"] for e in events_of(ligue1)], ["401876437"])  # Window Oct 13 -> Oct 28: earlier matches dropped
@@ -212,6 +213,33 @@ class SchedulerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((scores.next_at - clock()).total_seconds(), 20)  # A configured competition is live
         self.assertEqual((upcoming.next_at - clock()).total_seconds(), 1800)
         self.assertTrue(scheduler.health()["dayScoreboards"]["scores"]["ready"])
+
+    async def test_last_matches_is_the_day_before(self):
+        scheduler, clock, fake = make()
+        await run_until_idle(scheduler, clock)
+        last = scheduler.boards["last"]
+        self.assertTrue(any(u.endswith("/soccer/all/scoreboard?dates=20261013&limit=1000") for u in fake.urls))
+        self.assertEqual(last.date, "2026-10-13")
+        self.assertEqual((last.next_at - clock()).total_seconds(), 3600)  # Finished day: hourly
+        self.assertTrue(scheduler.health()["dayScoreboards"]["last"]["ready"])
+
+    async def test_new_espn_day_reloads_yesterday_and_tomorrow(self):
+        scheduler, clock, fake = make()
+        await run_until_idle(scheduler, clock)
+        scheduler.boards["scores"].date = "2026-10-13"  # As if ESPN had just rolled over to Oct 14
+        clock.now += timedelta(seconds=30)
+        await scheduler.run_job("scores", scheduler.boards["scores"])
+        self.assertEqual((scheduler.boards["last"].next_at, scheduler.boards["upcoming"].next_at), (clock(), clock()))
+
+    async def test_late_match_of_yesterday_followed_live(self):
+        scheduler, clock, fake = make(now=datetime(2026, 10, 15, 19, 30, tzinfo=timezone.utc))  # Yesterday = Oct 14 (CL live)
+        await run_until_idle(scheduler, clock)
+        for e in fake.events["uefa.champions"]:
+            e["status"]["type"]["state"] = "in"
+        scheduler.boards["scores"].date = "2026-10-15"
+        await scheduler.run_job("last", scheduler.boards["last"])
+        self.assertEqual(scheduler.boards["last"].date, "2026-10-14")
+        self.assertEqual((scheduler.boards["last"].next_at - clock()).total_seconds(), 20)
 
     async def test_scores_idle_when_no_configured_match_is_live(self):
         scheduler, clock, fake = make(competitions=[COMPETITIONS[0]])  # Ligue 1 only: the live CL matches don't count

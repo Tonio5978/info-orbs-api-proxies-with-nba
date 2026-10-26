@@ -90,6 +90,17 @@ class SoccerDayRoutesTest(unittest.TestCase):
         self.board.date = self.board.events = None
         soccer_proxy.scheduler.competitions["cl"].league_id = None
 
+    def test_last_matches_route(self):
+        last = soccer_proxy.scheduler.boards["last"]
+        self.assertEqual(self.client.get("/lastMatches").status_code, 503)
+        last.date, last.events = "2026-10-20", self.today
+        try:
+            body = self.client.get("/lastMatches?competition=cl").json()
+            self.assertEqual((body["date"], body["count"]), ("2026-10-20", 9))
+            self.assertEqual(self.client.get("/lastMatches?all=true").json()["count"], len(self.today))
+        finally:
+            last.date = last.events = None
+
     def test_not_loaded_yet(self):
         r = self.client.get("/upcoming")
         self.assertEqual((r.status_code, r.headers["retry-after"]), (503, "10"))
